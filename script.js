@@ -60,9 +60,10 @@ const BUTTON_RIGHT = 30;
 const BUTTON_LEFT = 30;
 const BUTTON_BOTTOM = 30;
 
-const BUTTON_WIDTH = 120;
+// ALL BUTTONS NOW SLIGHTLY SMALLER
+const BUTTON_WIDTH = 100;
 
-// Fade duration in milliseconds
+// Smooth transition
 const BUTTON_TRANSITION = 280;
 
 // Framer website
@@ -514,6 +515,7 @@ function createBackButton() {
     backButton.id =
         "back-button";
 
+    // EXACT FILE NAME
     backButton.src =
         "./glyphs/back-button.svg";
 
@@ -538,7 +540,6 @@ function createBackButton() {
     backButton.style.cursor =
         "pointer";
 
-    // Hidden initially
     backButton.style.opacity =
         "0";
 
@@ -623,15 +624,9 @@ function showBackButton() {
     backButton.style.pointerEvents =
         "auto";
 
-
-    // Start transparent
-
     backButton.style.opacity =
         "0";
 
-
-    // Let browser register initial state
-    // before fading it in.
 
     requestAnimationFrame(
 
@@ -704,9 +699,6 @@ function setButtonState(
     }
 
 
-    // No animation needed on
-    // first page load.
-
     if (!animate) {
 
         interfaceButton.src =
@@ -719,9 +711,7 @@ function setButtonState(
     }
 
 
-    // ======================================
-    // FADE OLD BUTTON OUT
-    // ======================================
+    // FADE OUT
 
     interfaceButton.style.pointerEvents =
         "none";
@@ -729,10 +719,6 @@ function setButtonState(
     interfaceButton.style.opacity =
         "0";
 
-
-    // ======================================
-    // CHANGE SVG WHILE INVISIBLE
-    // ======================================
 
     setTimeout(
 
@@ -742,9 +728,7 @@ function setButtonState(
                 newSource;
 
 
-            // ==================================
-            // FADE NEW BUTTON IN
-            // ==================================
+            // FADE IN
 
             requestAnimationFrame(
 
@@ -752,6 +736,7 @@ function setButtonState(
 
                     interfaceButton.style.opacity =
                         "1";
+
 
                     if (
                         state !==
@@ -765,9 +750,6 @@ function setButtonState(
 
             );
 
-
-            // When COLLECTED appears,
-            // BACK appears with it.
 
             if (
                 state ===
@@ -796,8 +778,6 @@ async function handleButtonClick() {
     }
 
 
-    // FIRST CLICK = SEAL
-
     if (!isSealed) {
 
         sealLetter();
@@ -805,8 +785,6 @@ async function handleButtonClick() {
         return;
     }
 
-
-    // SECOND CLICK = COLLECT
 
     if (
         isSealed &&
@@ -829,16 +807,12 @@ function sealLetter() {
     isSealed = true;
 
 
-    // Hide cursor
-
     if (cursorGroup) {
 
         cursorGroup.style.display =
             "none";
     }
 
-
-    // Stop cursor animation
 
     if (cursorAnimationFrame) {
 
@@ -850,8 +824,6 @@ function sealLetter() {
             null;
     }
 
-
-    // SEAL → COLLECT
 
     setButtonState(
         "collect"
@@ -2443,8 +2415,8 @@ function loadSavedLetter(data) {
     updateCanvasHeight();
 
 
-    // Received heart = read only.
-    // Hide all controls.
+    // READ-ONLY RECEIVED HEART:
+    // hide all interface controls.
 
     if (interfaceButton) {
 
@@ -2487,10 +2459,6 @@ window.addEventListener(
             isSealed ||
             isReadOnly
         ) {
-
-            // Keyboard no longer edits.
-            // Normal browser scrolling
-            // remains available.
 
             return;
         }
