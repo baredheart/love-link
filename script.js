@@ -1,10 +1,19 @@
 // ==========================================
 // BARED HEART
-// RESPONSIVE DIGITAL LOVE LETTER
+// DESKTOP + MOBILE
 // ==========================================
 
 const canvas = document.getElementById("canvas");
 const SVG_NS = "http://www.w3.org/2000/svg";
+
+
+// ==========================================
+// DEVICE
+// ==========================================
+
+const isMobile =
+    window.matchMedia("(pointer: coarse)").matches ||
+    "ontouchstart" in window;
 
 
 // ==========================================
@@ -25,11 +34,14 @@ const supabaseClient =
 
 
 // ==========================================
-// BARED HEART URL
+// URLS
 // ==========================================
 
 const SITE_URL =
     "https://baredheart.github.io/love-link/";
+
+const FRAMER_URL =
+    "https://baredheart.framer.website/";
 
 
 // ==========================================
@@ -48,7 +60,18 @@ const SPACE_WIDTH = 35;
 
 
 // ==========================================
-// LETTER WIDTH SETTINGS
+// MOBILE SETTINGS
+// ==========================================
+
+// Only used on touch/mobile devices.
+// Desktop still uses the browser width exactly
+// as it did previously.
+
+const MOBILE_CANVAS_WIDTH = 900;
+
+
+// ==========================================
+// WIDTH BEHAVIOUR
 // ==========================================
 
 const MIN_TIME = 50;
@@ -59,16 +82,11 @@ const MAX_STRETCH = 10;
 
 
 // ==========================================
-// CURSOR SETTINGS
+// CURSOR
 // ==========================================
 
 const CURSOR_GAP = 12;
 const CURSOR_SCALE = 1;
-
-
-// ==========================================
-// CURSOR BLINK SETTINGS
-// ==========================================
 
 const BLINK_FAST = 320;
 const BLINK_SLOW = 1100;
@@ -78,7 +96,7 @@ const SLOWDOWN_END = 4500;
 
 
 // ==========================================
-// BUTTON SETTINGS
+// BUTTONS
 // ==========================================
 
 const BUTTON_RIGHT = 30;
@@ -86,15 +104,11 @@ const BUTTON_LEFT = 30;
 const BUTTON_BOTTOM = 30;
 
 const BUTTON_WIDTH = 115;
-
 const BUTTON_TRANSITION = 280;
-
-const FRAMER_URL =
-    "https://baredheart.framer.website/";
 
 
 // ==========================================
-// WRITING STATE
+// STATE
 // ==========================================
 
 let cursorX = LEFT_MARGIN;
@@ -106,17 +120,12 @@ let isSealed = false;
 let isCollected = false;
 let isReadOnly = false;
 
-
-// ==========================================
-// WRITING HISTORY
-// ==========================================
-
 let history = [];
 let strikeIndex = -1;
 
 
 // ==========================================
-// SVG FILE MAP
+// SVG FILES
 // ==========================================
 
 const glyphFiles = {
@@ -205,6 +214,16 @@ const glyphFiles = {
 
 
 // ==========================================
+// SVG STORAGE
+// ==========================================
+
+const glyphs = {};
+
+let cursorSource = null;
+let strikeSource = null;
+
+
+// ==========================================
 // LOAD SVG
 // ==========================================
 
@@ -239,20 +258,17 @@ async function loadSVG(file) {
 
 
 // ==========================================
-// SVG STORAGE
-// ==========================================
-
-const glyphs = {};
-
-let cursorSource = null;
-let strikeSource = null;
-
-
-// ==========================================
-// LOAD EVERYTHING
+// INITIALISE
 // ==========================================
 
 async function loadEverything() {
+
+    // Only alter page scrolling on mobile.
+    if (isMobile) {
+
+        setupMobilePage();
+        createMobileInput();
+    }
 
     const characters =
         Object.keys(glyphFiles);
@@ -272,30 +288,21 @@ async function loadEverything() {
         )
     );
 
-
     cursorSource =
         await loadSVG(
             "./glyphs/cursor.svg"
         );
-
 
     strikeSource =
         await loadSVG(
             "./glyphs/strike-through.svg"
         );
 
-
     createInterfaceButton();
     createBackButton();
 
-
-    // --------------------------------------
-    // CHECK FOR SHORT HEART ID
-    // --------------------------------------
-
     const heartID =
         getHeartIDFromURL();
-
 
     if (heartID) {
 
@@ -309,25 +316,20 @@ async function loadEverything() {
         return;
     }
 
-
-    // --------------------------------------
-    // NORMAL WRITING MODE
-    // --------------------------------------
-
     if (cursorSource) {
 
         createCursor();
     }
-
 
     setButtonState(
         "seal",
         false
     );
 
+    updateCanvasSize();
 
     console.log(
-        "Bared Heart loaded!"
+        "Bared Heart loaded."
     );
 }
 
@@ -336,20 +338,286 @@ loadEverything();
 
 
 // ==========================================
-// CREATE RANDOM HEART ID
+// MOBILE PAGE SETUP
+// ==========================================
+
+function setupMobilePage() {
+
+    document.documentElement.style.overflowX =
+        "auto";
+
+    document.documentElement.style.overflowY =
+        "auto";
+
+    document.body.style.overflowX =
+        "auto";
+
+    document.body.style.overflowY =
+        "auto";
+
+    document.body.style.touchAction =
+        "pan-x pan-y";
+
+    canvas.style.maxWidth =
+        "none";
+
+    canvas.style.touchAction =
+        "pan-x pan-y";
+}
+
+
+// ==========================================
+// MOBILE INPUT
+// ==========================================
+
+let mobileInput = null;
+
+
+function createMobileInput() {
+
+    mobileInput =
+        document.createElement(
+            "textarea"
+        );
+
+    mobileInput.setAttribute(
+        "autocomplete",
+        "off"
+    );
+
+    mobileInput.setAttribute(
+        "autocorrect",
+        "off"
+    );
+
+    mobileInput.setAttribute(
+        "autocapitalize",
+        "characters"
+    );
+
+    mobileInput.setAttribute(
+        "spellcheck",
+        "false"
+    );
+
+    mobileInput.setAttribute(
+        "inputmode",
+        "text"
+    );
+
+
+    // Invisible, but still focusable by iOS.
+
+    mobileInput.style.position =
+        "fixed";
+
+    mobileInput.style.left =
+        "0";
+
+    mobileInput.style.bottom =
+        "0";
+
+    mobileInput.style.width =
+        "1px";
+
+    mobileInput.style.height =
+        "1px";
+
+    mobileInput.style.opacity =
+        "0";
+
+    mobileInput.style.border =
+        "0";
+
+    mobileInput.style.padding =
+        "0";
+
+    mobileInput.style.margin =
+        "0";
+
+    mobileInput.style.fontSize =
+        "16px";
+
+    mobileInput.style.pointerEvents =
+        "none";
+
+    mobileInput.style.zIndex =
+        "-1";
+
+    document.body.appendChild(
+        mobileInput
+    );
+
+
+    // ======================================
+    // MOBILE CHARACTER INPUT
+    // ======================================
+
+    mobileInput.addEventListener(
+
+        "input",
+
+        function () {
+
+            if (
+                isSealed ||
+                isReadOnly
+            ) {
+
+                mobileInput.value = "";
+                return;
+            }
+
+            const value =
+                mobileInput.value;
+
+            if (!value) {
+                return;
+            }
+
+            const inputCharacters =
+                Array.from(value);
+
+            inputCharacters.forEach(
+
+                function (character) {
+
+                    if (
+                        character === "\n"
+                    ) {
+
+                        handleReturn();
+                        return;
+                    }
+
+                    if (
+                        character === " "
+                    ) {
+
+                        handleSpace();
+                        return;
+                    }
+
+                    processTypedCharacter(
+                        character
+                    );
+                }
+            );
+
+            mobileInput.value = "";
+        }
+    );
+
+
+    // ======================================
+    // MOBILE BACKSPACE
+    // ======================================
+
+    mobileInput.addEventListener(
+
+        "keydown",
+
+        function (event) {
+
+            if (
+                isSealed ||
+                isReadOnly
+            ) {
+
+                return;
+            }
+
+            if (
+                event.key ===
+                "Backspace"
+            ) {
+
+                event.preventDefault();
+
+                strikePreviousCharacter();
+
+                mobileInput.value = "";
+            }
+        }
+    );
+
+
+    // ======================================
+    // TAP PAGE → KEYBOARD
+    // ======================================
+
+    canvas.addEventListener(
+
+        "click",
+
+        function () {
+
+            if (
+                isSealed ||
+                isReadOnly
+            ) {
+
+                return;
+            }
+
+            focusMobileInput();
+        }
+    );
+}
+
+
+// ==========================================
+// FOCUS MOBILE INPUT
+// ==========================================
+
+function focusMobileInput() {
+
+    if (
+        !mobileInput ||
+        isSealed ||
+        isReadOnly
+    ) {
+
+        return;
+    }
+
+    mobileInput.focus({
+        preventScroll: true
+    });
+}
+
+
+// ==========================================
+// WRITING WIDTH
+// ==========================================
+
+function getWritingWidth() {
+
+    if (isMobile) {
+
+        return Math.max(
+            MOBILE_CANVAS_WIDTH,
+            window.innerWidth
+        );
+    }
+
+    // IMPORTANT:
+    // Desktop behaves exactly as before.
+
+    return window.innerWidth;
+}
+
+
+// ==========================================
+// HEART ID
 // ==========================================
 
 function generateHeartID() {
 
-    // Removed confusing characters:
-    // I, O, 0 and 1
-
     const characters =
         "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-
     let id = "";
-
 
     for (
         let i = 0;
@@ -363,21 +631,13 @@ function generateHeartID() {
                 characters.length
             );
 
-
         id +=
-            characters[
-                randomIndex
-            ];
+            characters[randomIndex];
     }
-
 
     return id;
 }
 
-
-// ==========================================
-// GET HEART ID FROM URL
-// ==========================================
 
 function getHeartIDFromURL() {
 
@@ -386,13 +646,11 @@ function getHeartIDFromURL() {
         return null;
     }
 
-
     const id =
         window.location.hash
             .substring(1)
             .trim()
             .toUpperCase();
-
 
     if (
         !/^[A-Z2-9]{5}$/.test(id)
@@ -401,21 +659,17 @@ function getHeartIDFromURL() {
         return null;
     }
 
-
     return id;
 }
 
 
 // ==========================================
-// SAVE HEART TO SUPABASE
+// SUPABASE SAVE
 // ==========================================
 
 async function saveHeartToSupabase(
     letterData
 ) {
-
-    // Try multiple IDs in the very unlikely
-    // event that one already exists.
 
     for (
         let attempt = 0;
@@ -425,7 +679,6 @@ async function saveHeartToSupabase(
 
         const heartID =
             generateHeartID();
-
 
         const { error } =
             await supabaseClient
@@ -439,15 +692,10 @@ async function saveHeartToSupabase(
                         letterData
                 });
 
-
         if (!error) {
 
             return heartID;
         }
-
-
-        // PostgreSQL duplicate primary key
-        // error. Generate another ID.
 
         if (
             error.code ===
@@ -457,25 +705,22 @@ async function saveHeartToSupabase(
             continue;
         }
 
-
         console.error(
             "Could not save heart:",
             error
         );
 
-
         throw error;
     }
 
-
     throw new Error(
-        "Could not create a unique heart ID."
+        "Could not create unique heart ID."
     );
 }
 
 
 // ==========================================
-// LOAD HEART FROM SUPABASE
+// SUPABASE LOAD
 // ==========================================
 
 async function loadHeartFromSupabase(
@@ -492,7 +737,6 @@ async function loadHeartFromSupabase(
             )
             .maybeSingle();
 
-
     if (error) {
 
         console.error(
@@ -502,7 +746,6 @@ async function loadHeartFromSupabase(
 
         return;
     }
-
 
     if (
         !data ||
@@ -517,21 +760,14 @@ async function loadHeartFromSupabase(
         return;
     }
 
-
     loadSavedLetter(
         data.letter_data
-    );
-
-
-    console.log(
-        "Heart opened:",
-        heartID
     );
 }
 
 
 // ==========================================
-// TYPING TIME → LETTER WIDTH
+// TIMING → WIDTH
 // ==========================================
 
 function getStretch(interval) {
@@ -545,7 +781,6 @@ function getStretch(interval) {
             MAX_TIME
         );
 
-
     let amount =
         (
             time -
@@ -557,13 +792,11 @@ function getStretch(interval) {
             MIN_TIME
         );
 
-
     amount =
         Math.pow(
             amount,
             1.1
         );
-
 
     return (
         MIN_STRETCH +
@@ -577,14 +810,13 @@ function getStretch(interval) {
 
 
 // ==========================================
-// KEEP STROKE THICKNESS CONSTANT
+// PRESERVE STROKE
 // ==========================================
 
 function preserveStrokeWidth(element) {
 
     const selectors =
         "path, line, polyline, polygon, circle, ellipse, rect";
-
 
     if (
         element.matches &&
@@ -596,7 +828,6 @@ function preserveStrokeWidth(element) {
             "non-scaling-stroke"
         );
     }
-
 
     if (element.querySelectorAll) {
 
@@ -618,7 +849,7 @@ function preserveStrokeWidth(element) {
 
 
 // ==========================================
-// MAIN INTERFACE BUTTON
+// MAIN BUTTON
 // ==========================================
 
 let interfaceButton = null;
@@ -631,50 +862,44 @@ function createInterfaceButton() {
             "img"
         );
 
-
     interfaceButton.id =
         "heart-button";
-
 
     interfaceButton.style.position =
         "fixed";
 
-
     interfaceButton.style.right =
         BUTTON_RIGHT + "px";
-
 
     interfaceButton.style.bottom =
         BUTTON_BOTTOM + "px";
 
-
     interfaceButton.style.width =
         BUTTON_WIDTH + "px";
-
 
     interfaceButton.style.height =
         "auto";
 
-
     interfaceButton.style.zIndex =
         "9999";
-
 
     interfaceButton.style.cursor =
         "pointer";
 
-
     interfaceButton.style.opacity =
         "1";
-
 
     interfaceButton.style.transition =
         `opacity ${BUTTON_TRANSITION}ms ease-in-out`;
 
-
     interfaceButton.style.userSelect =
         "none";
 
+    interfaceButton.style.webkitUserSelect =
+        "none";
+
+    interfaceButton.style.webkitTouchCallout =
+        "none";
 
     interfaceButton.draggable =
         false;
@@ -735,62 +960,50 @@ function createBackButton() {
             "img"
         );
 
-
     backButton.id =
         "back-button";
-
 
     backButton.src =
         "./glyphs/back-button.svg";
 
-
     backButton.style.position =
         "fixed";
-
 
     backButton.style.left =
         BUTTON_LEFT + "px";
 
-
     backButton.style.bottom =
         BUTTON_BOTTOM + "px";
-
 
     backButton.style.width =
         BUTTON_WIDTH + "px";
 
-
     backButton.style.height =
         "auto";
-
 
     backButton.style.zIndex =
         "9999";
 
-
     backButton.style.cursor =
         "pointer";
-
 
     backButton.style.opacity =
         "0";
 
-
     backButton.style.visibility =
         "hidden";
-
 
     backButton.style.pointerEvents =
         "none";
 
-
     backButton.style.transition =
         `opacity ${BUTTON_TRANSITION}ms ease-in-out`;
-
 
     backButton.style.userSelect =
         "none";
 
+    backButton.style.webkitUserSelect =
+        "none";
 
     backButton.draggable =
         false;
@@ -839,7 +1052,7 @@ function createBackButton() {
 
 
 // ==========================================
-// SHOW BACK BUTTON
+// SHOW BACK
 // ==========================================
 
 function showBackButton() {
@@ -848,18 +1061,14 @@ function showBackButton() {
         return;
     }
 
-
     backButton.style.visibility =
         "visible";
-
 
     backButton.style.pointerEvents =
         "auto";
 
-
     backButton.style.opacity =
         "0";
-
 
     requestAnimationFrame(
 
@@ -891,75 +1100,60 @@ function setButtonState(
         return;
     }
 
-
     let newSource = "";
-
 
     if (state === "seal") {
 
         newSource =
             "./glyphs/seal-button.svg";
 
-
         interfaceButton.style.cursor =
             "pointer";
     }
-
 
     if (state === "collect") {
 
         newSource =
             "./glyphs/collect-button.svg";
 
-
         interfaceButton.style.cursor =
             "pointer";
     }
-
 
     if (state === "collected") {
 
         newSource =
             "./glyphs/collected-button.svg";
 
-
         interfaceButton.style.cursor =
             "default";
     }
 
-
     if (!newSource) {
         return;
     }
-
 
     if (!animate) {
 
         interfaceButton.src =
             newSource;
 
-
         interfaceButton.style.opacity =
             "1";
-
 
         interfaceButton.style.pointerEvents =
             state === "collected"
                 ? "none"
                 : "auto";
 
-
         return;
     }
-
 
     interfaceButton.style.pointerEvents =
         "none";
 
-
     interfaceButton.style.opacity =
         "0";
-
 
     setTimeout(
 
@@ -968,14 +1162,12 @@ function setButtonState(
             interfaceButton.src =
                 newSource;
 
-
             requestAnimationFrame(
 
                 function () {
 
                     interfaceButton.style.opacity =
                         "1";
-
 
                     if (
                         state !==
@@ -987,7 +1179,6 @@ function setButtonState(
                     }
                 }
             );
-
 
             if (
                 state ===
@@ -1018,34 +1209,28 @@ async function handleButtonClick() {
         return;
     }
 
-
     if (!isSealed) {
 
         sealLetter();
-
         return;
     }
 
-
-    if (
-        isSealed &&
-        !isCollected
-    ) {
-
-        await collectLetter();
-    }
+    await collectLetter();
 }
 
 
 // ==========================================
-// SEAL LETTER
+// SEAL
 // ==========================================
 
 function sealLetter() {
 
-    isSealed =
-        true;
+    isSealed = true;
 
+    if (mobileInput) {
+
+        mobileInput.blur();
+    }
 
     if (cursorGroup) {
 
@@ -1053,37 +1238,26 @@ function sealLetter() {
             "none";
     }
 
-
     if (cursorAnimationFrame) {
 
         cancelAnimationFrame(
             cursorAnimationFrame
         );
 
-
-        cursorAnimationFrame =
-            null;
+        cursorAnimationFrame = null;
     }
-
 
     setButtonState(
         "collect"
-    );
-
-
-    console.log(
-        "Heart sealed."
     );
 }
 
 
 // ==========================================
-// COLLECT LETTER
+// COLLECT
 // ==========================================
 
 async function collectLetter() {
-
-    // Prevent double clicks while saving.
 
     if (interfaceButton) {
 
@@ -1091,31 +1265,20 @@ async function collectLetter() {
             "none";
     }
 
-
     try {
 
         const letterData =
             createLetterData();
-
-
-        // Save complete letter to Supabase
-        // and receive its unique short ID.
 
         const heartID =
             await saveHeartToSupabase(
                 letterData
             );
 
-
-        // Clean short URL.
-
         const shareURL =
             SITE_URL +
             "#" +
             heartID;
-
-
-        // Copy it to sender's clipboard.
 
         try {
 
@@ -1123,28 +1286,18 @@ async function collectLetter() {
                 shareURL
             );
 
-        } catch (clipboardError) {
+        } catch (error) {
 
             fallbackCopy(
                 shareURL
             );
         }
 
-
-        isCollected =
-            true;
-
+        isCollected = true;
 
         setButtonState(
             "collected"
         );
-
-
-        console.log(
-            "Heart collected:",
-            shareURL
-        );
-
 
     } catch (error) {
 
@@ -1152,10 +1305,6 @@ async function collectLetter() {
             "Heart could not be collected:",
             error
         );
-
-
-        // Let them try COLLECT again if
-        // saving failed.
 
         if (interfaceButton) {
 
@@ -1177,27 +1326,20 @@ function fallbackCopy(text) {
             "textarea"
         );
 
-
-    textArea.value =
-        text;
-
+    textArea.value = text;
 
     textArea.style.position =
         "fixed";
 
-
     textArea.style.opacity =
         "0";
-
 
     document.body.appendChild(
         textArea
     );
 
-
     textArea.focus();
     textArea.select();
-
 
     try {
 
@@ -1208,18 +1350,17 @@ function fallbackCopy(text) {
     } catch (error) {
 
         console.error(
-            "Fallback copy failed:",
+            "Copy failed:",
             error
         );
     }
-
 
     textArea.remove();
 }
 
 
 // ==========================================
-// CREATE LETTER DATA
+// SAVE LETTER DATA
 // ==========================================
 
 function createLetterData() {
@@ -1266,7 +1407,6 @@ function createLetterData() {
                 };
             }
 
-
             return {
 
                 type:
@@ -1288,7 +1428,7 @@ function createLetterData() {
 
 
 // ==========================================
-// CURSOR
+// CURSOR STATE
 // ==========================================
 
 let cursorGroup = null;
@@ -1299,11 +1439,9 @@ let cursorPauseStart =
 let lastBlinkTime =
     performance.now();
 
-let cursorVisible =
-    true;
+let cursorVisible = true;
 
-let cursorAnimationFrame =
-    null;
+let cursorAnimationFrame = null;
 
 
 // ==========================================
@@ -1321,13 +1459,11 @@ function createCursor() {
         return;
     }
 
-
     cursorGroup =
         document.createElementNS(
             SVG_NS,
             "g"
         );
-
 
     Array.from(
         cursorSource.children
@@ -1341,11 +1477,9 @@ function createCursor() {
                     true
                 );
 
-
             preserveStrokeWidth(
                 copy
             );
-
 
             cursorGroup.appendChild(
                 copy
@@ -1353,23 +1487,17 @@ function createCursor() {
         }
     );
 
-
     canvas.appendChild(
         cursorGroup
     );
 
-
     cursorPauseStart =
         performance.now();
-
 
     lastBlinkTime =
         performance.now();
 
-
-    cursorVisible =
-        true;
-
+    cursorVisible = true;
 
     animateCursor();
 }
@@ -1391,19 +1519,15 @@ function animateCursor() {
         return;
     }
 
-
     const now =
         performance.now();
-
 
     const pausedFor =
         now -
         cursorPauseStart;
 
-
     let blinkSpeed =
         BLINK_FAST;
-
 
     if (
         pausedFor >
@@ -1421,7 +1545,6 @@ function animateCursor() {
                 SLOWDOWN_START
             );
 
-
         progress =
             Math.min(
                 Math.max(
@@ -1431,7 +1554,6 @@ function animateCursor() {
                 1
             );
 
-
         progress =
             progress *
             progress *
@@ -1440,17 +1562,14 @@ function animateCursor() {
                 2 * progress
             );
 
-
         blinkSpeed =
             BLINK_FAST +
             (
                 BLINK_SLOW -
                 BLINK_FAST
-            )
-            *
+            ) *
             progress;
     }
-
 
     if (
         now -
@@ -1461,51 +1580,40 @@ function animateCursor() {
         cursorVisible =
             !cursorVisible;
 
-
-        lastBlinkTime =
-            now;
+        lastBlinkTime = now;
     }
-
 
     cursorGroup.style.opacity =
         cursorVisible
             ? "1"
             : "0";
 
-
     const viewBox =
         cursorSource.viewBox.baseVal;
-
 
     const baseScale =
         LETTER_HEIGHT /
         viewBox.height;
 
-
     const finalScale =
         baseScale *
         CURSOR_SCALE;
-
 
     const centreX =
         viewBox.x +
         viewBox.width / 2;
 
-
     const centreY =
         viewBox.y +
         viewBox.height / 2;
-
 
     const anchorX =
         cursorX +
         CURSOR_GAP;
 
-
     const anchorY =
         cursorY +
         LETTER_HEIGHT / 2;
-
 
     cursorGroup.setAttribute(
 
@@ -1518,14 +1626,9 @@ function animateCursor() {
         `
     );
 
-
     canvas.appendChild(
         cursorGroup
     );
-
-
-    ensureCursorVisible();
-
 
     cursorAnimationFrame =
         requestAnimationFrame(
@@ -1548,18 +1651,13 @@ function resetCursor() {
         return;
     }
 
-
     cursorPauseStart =
         performance.now();
-
 
     lastBlinkTime =
         performance.now();
 
-
-    cursorVisible =
-        true;
-
+    cursorVisible = true;
 
     if (cursorGroup) {
 
@@ -1570,23 +1668,23 @@ function resetCursor() {
 
 
 // ==========================================
-// AUTOMATIC PAGE SCROLL
+// DESKTOP FOLLOW
+// ORIGINAL VERTICAL BEHAVIOUR
 // ==========================================
 
-let lastScrollLine =
-    -1;
+let lastScrollLine = -1;
 
 
-function ensureCursorVisible() {
+function followDesktopCursor() {
 
     if (
+        isMobile ||
         isSealed ||
         isReadOnly
     ) {
 
         return;
     }
-
 
     const currentLine =
         Math.round(
@@ -1598,27 +1696,23 @@ function ensureCursorVisible() {
             LINE_HEIGHT
         );
 
-
     const cursorOnScreen =
         cursorY -
         window.scrollY;
-
 
     const safeBottom =
         window.innerHeight *
         0.75;
 
-
     if (
         cursorOnScreen >
-        safeBottom &&
+            safeBottom &&
         currentLine !==
-        lastScrollLine
+            lastScrollLine
     ) {
 
         lastScrollLine =
             currentLine;
-
 
         window.scrollTo({
 
@@ -1638,30 +1732,246 @@ function ensureCursorVisible() {
 
 
 // ==========================================
-// CANVAS HEIGHT
+// MOBILE FOLLOW
+// HORIZONTAL + VERTICAL
 // ==========================================
 
-function updateCanvasHeight() {
+function followMobileCursor() {
+
+    if (
+        !isMobile ||
+        isSealed ||
+        isReadOnly
+    ) {
+
+        return;
+    }
+
+    const screenX =
+        cursorX -
+        window.scrollX;
+
+    const screenY =
+        cursorY -
+        window.scrollY;
+
+
+    // Keep the cursor around the middle-right
+    // of the phone while typing.
+
+    const safeRight =
+        window.innerWidth *
+        0.72;
+
+    const safeLeft =
+        window.innerWidth *
+        0.15;
+
+    const safeBottom =
+        window.innerHeight *
+        0.58;
+
+    const safeTop =
+        window.innerHeight *
+        0.15;
+
+
+    let targetX =
+        window.scrollX;
+
+    let targetY =
+        window.scrollY;
+
+
+    if (
+        screenX >
+        safeRight
+    ) {
+
+        targetX =
+            cursorX -
+            window.innerWidth *
+            0.55;
+    }
+
+
+    if (
+        screenX <
+        safeLeft
+    ) {
+
+        targetX =
+            cursorX -
+            window.innerWidth *
+            0.15;
+    }
+
+
+    if (
+        screenY >
+        safeBottom
+    ) {
+
+        targetY =
+            cursorY -
+            window.innerHeight *
+            0.42;
+    }
+
+
+    if (
+        screenY <
+        safeTop
+    ) {
+
+        targetY =
+            cursorY -
+            window.innerHeight *
+            0.15;
+    }
+
+
+    targetX =
+        Math.max(
+            0,
+            targetX
+        );
+
+    targetY =
+        Math.max(
+            0,
+            targetY
+        );
+
+
+    window.scrollTo({
+
+        left:
+            targetX,
+
+        top:
+            targetY,
+
+        behavior:
+            "smooth"
+    });
+}
+
+
+// ==========================================
+// FOLLOW CORRECT DEVICE
+// ==========================================
+
+function followCursor() {
+
+    if (isMobile) {
+
+        followMobileCursor();
+
+    } else {
+
+        followDesktopCursor();
+    }
+}
+
+
+// ==========================================
+// CANVAS SIZE
+// ==========================================
+
+function updateCanvasSize() {
 
     const requiredHeight =
-        cursorY +
-        LINE_HEIGHT +
-        150;
+        Math.max(
+            cursorY +
+                LINE_HEIGHT +
+                150,
+            window.innerHeight
+        );
 
 
-    const minimumHeight =
-        window.innerHeight;
+    // ======================================
+    // DESKTOP
+    // ======================================
+
+    if (!isMobile) {
+
+        // Preserve original desktop width.
+
+        canvas.setAttribute(
+            "width",
+            "100%"
+        );
+
+        canvas.setAttribute(
+            "height",
+            requiredHeight
+        );
+
+        canvas.style.width =
+            "100%";
+
+        canvas.style.height =
+            requiredHeight + "px";
+
+        return;
+    }
+
+
+    // ======================================
+    // MOBILE
+    // ======================================
+
+    let requiredWidth =
+        Math.max(
+            MOBILE_CANVAS_WIDTH,
+            window.innerWidth
+        );
+
+
+    history.forEach(
+
+        function (item) {
+
+            if (
+                item.type ===
+                "glyph"
+            ) {
+
+                requiredWidth =
+                    Math.max(
+                        requiredWidth,
+                        item.x +
+                        item.width +
+                        RIGHT_MARGIN +
+                        100
+                    );
+            }
+        }
+    );
 
 
     canvas.setAttribute(
-
-        "height",
-
-        Math.max(
-            requiredHeight,
-            minimumHeight
-        )
+        "width",
+        requiredWidth
     );
+
+    canvas.setAttribute(
+        "height",
+        requiredHeight
+    );
+
+    canvas.style.width =
+        requiredWidth + "px";
+
+    canvas.style.height =
+        requiredHeight + "px";
+}
+
+
+function updateCanvasHeight() {
+
+    updateCanvasSize();
 }
 
 
@@ -1679,47 +1989,38 @@ function createGlyphElement(
     const sourceSVG =
         glyphs[character];
 
-
     if (!sourceSVG) {
 
         return null;
     }
 
-
     const viewBox =
         sourceSVG.viewBox.baseVal;
-
 
     const originalWidth =
         viewBox.width;
 
-
     const originalHeight =
         viewBox.height;
-
 
     const scaleY =
         LETTER_HEIGHT /
         originalHeight;
 
-
     const scaleX =
         scaleY *
         stretch;
-
 
     const newWidth =
         originalWidth *
         scaleY *
         stretch;
 
-
     const group =
         document.createElementNS(
             SVG_NS,
             "g"
         );
-
 
     Array.from(
         sourceSVG.children
@@ -1733,18 +2034,15 @@ function createGlyphElement(
                     true
                 );
 
-
             preserveStrokeWidth(
                 copy
             );
-
 
             group.appendChild(
                 copy
             );
         }
     );
-
 
     group.setAttribute(
 
@@ -1757,11 +2055,9 @@ function createGlyphElement(
         `
     );
 
-
     canvas.appendChild(
         group
     );
-
 
     return {
 
@@ -1775,7 +2071,7 @@ function createGlyphElement(
 
 
 // ==========================================
-// DRAW CHARACTER
+// DRAW GLYPH
 // ==========================================
 
 function drawGlyph(
@@ -1786,73 +2082,60 @@ function drawGlyph(
     const sourceSVG =
         glyphs[character];
 
-
     if (!sourceSVG) {
         return;
     }
 
-
     const viewBox =
         sourceSVG.viewBox.baseVal;
-
 
     const originalWidth =
         viewBox.width;
 
-
     const originalHeight =
         viewBox.height;
-
 
     const stretch =
         getStretch(
             interval
         );
 
-
     const scaleY =
         LETTER_HEIGHT /
         originalHeight;
-
 
     const baseWidth =
         originalWidth *
         scaleY;
 
-
     const newWidth =
         baseWidth *
         stretch;
 
-
     const availableWidth =
-        window.innerWidth -
+        getWritingWidth() -
         RIGHT_MARGIN;
 
 
     if (
-        cursorX !== LEFT_MARGIN &&
+        cursorX !==
+            LEFT_MARGIN &&
         cursorX +
-        newWidth +
-        CURSOR_GAP >
-        availableWidth
+            newWidth +
+            CURSOR_GAP >
+            availableWidth
     ) {
 
         cursorX =
             LEFT_MARGIN;
 
-
         cursorY +=
             LINE_HEIGHT;
-
-
-        updateCanvasHeight();
     }
 
 
     const startX =
         cursorX;
-
 
     const startY =
         cursorY;
@@ -1865,7 +2148,6 @@ function drawGlyph(
             startY,
             stretch
         );
-
 
     if (!result) {
         return;
@@ -1926,20 +2208,181 @@ function drawGlyph(
 
     resetCursor();
 
+    updateCanvasSize();
 
-    updateCanvasHeight();
+    requestAnimationFrame(
+        followCursor
+    );
 }
 
 
 // ==========================================
-// REMOVE OLD STRIKE GROUPS
+// RETURN
+// ==========================================
+
+function handleReturn() {
+
+    history.push({
+
+        type:
+            "return",
+
+        x:
+            cursorX,
+
+        y:
+            cursorY
+    });
+
+
+    cursorX =
+        LEFT_MARGIN;
+
+    cursorY +=
+        LINE_HEIGHT;
+
+    lastKeyTime = null;
+
+    strikeIndex =
+        history.length -
+        1;
+
+    resetCursor();
+
+    updateCanvasSize();
+
+    requestAnimationFrame(
+        followCursor
+    );
+}
+
+
+// ==========================================
+// SPACE
+// ==========================================
+
+function handleSpace() {
+
+    history.push({
+
+        type:
+            "space",
+
+        x:
+            cursorX,
+
+        y:
+            cursorY
+    });
+
+
+    cursorX +=
+        SPACE_WIDTH;
+
+
+    if (
+        cursorX >
+        getWritingWidth() -
+        RIGHT_MARGIN
+    ) {
+
+        cursorX =
+            LEFT_MARGIN;
+
+        cursorY +=
+            LINE_HEIGHT;
+    }
+
+
+    strikeIndex =
+        history.length -
+        1;
+
+    resetCursor();
+
+    updateCanvasSize();
+
+    requestAnimationFrame(
+        followCursor
+    );
+}
+
+
+// ==========================================
+// PROCESS CHARACTER
+// ==========================================
+
+function processTypedCharacter(
+    character
+) {
+
+    if (
+        isSealed ||
+        isReadOnly
+    ) {
+
+        return;
+    }
+
+
+    if (
+        /^[a-zA-Z]$/.test(
+            character
+        )
+    ) {
+
+        character =
+            character.toUpperCase();
+    }
+
+
+    if (!glyphs[character]) {
+
+        console.warn(
+            "Unsupported character:",
+            character
+        );
+
+        return;
+    }
+
+
+    // This timing measurement is shared by
+    // desktop AND mobile.
+
+    const now =
+        performance.now();
+
+    let interval = 200;
+
+    if (
+        lastKeyTime !==
+        null
+    ) {
+
+        interval =
+            now -
+            lastKeyTime;
+    }
+
+    lastKeyTime = now;
+
+
+    drawGlyph(
+        character,
+        interval
+    );
+}
+
+
+// ==========================================
+// REMOVE STRIKES
 // ==========================================
 
 function removeStrikeGroups(items) {
 
     const removedGroups =
         new Set();
-
 
     items.forEach(
 
@@ -1956,20 +2399,17 @@ function removeStrikeGroups(items) {
                     item.strikeElement
                 );
 
-
                 item.strikeElement.remove();
             }
 
-
-            item.strikeElement =
-                null;
+            item.strikeElement = null;
         }
     );
 }
 
 
 // ==========================================
-// DRAW CONTINUOUS STRIKE
+// DRAW STRIKE
 // ==========================================
 
 function drawContinuousStrike(items) {
@@ -1982,14 +2422,8 @@ function drawContinuousStrike(items) {
         return;
     }
 
-
-    let startX =
-        Infinity;
-
-
-    let endX =
-        -Infinity;
-
+    let startX = Infinity;
+    let endX = -Infinity;
 
     items.forEach(
 
@@ -2000,7 +2434,6 @@ function drawContinuousStrike(items) {
                     startX,
                     item.x
                 );
-
 
             endX =
                 Math.max(
@@ -2016,7 +2449,6 @@ function drawContinuousStrike(items) {
         endX -
         startX;
 
-
     const lineY =
         items[0].y;
 
@@ -2029,11 +2461,9 @@ function drawContinuousStrike(items) {
     const strikeViewBox =
         strikeSource.viewBox.baseVal;
 
-
     const scaleX =
         totalWidth /
         strikeViewBox.width;
-
 
     const scaleY =
         LETTER_HEIGHT /
@@ -2059,11 +2489,9 @@ function drawContinuousStrike(items) {
                     true
                 );
 
-
             preserveStrokeWidth(
                 copy
             );
-
 
             strikeGroup.appendChild(
                 copy
@@ -2112,7 +2540,7 @@ function drawContinuousStrike(items) {
 
 
 // ==========================================
-// REDRAW ALL STRIKES
+// REDRAW STRIKES
 // ==========================================
 
 function redrawAllStrikes() {
@@ -2151,7 +2579,6 @@ function redrawAllStrikes() {
                 );
             }
 
-
             lines.get(
                 item.y
             ).push(
@@ -2169,16 +2596,12 @@ function redrawAllStrikes() {
 
                 function (a, b) {
 
-                    return (
-                        a.x -
-                        b.x
-                    );
+                    return a.x - b.x;
                 }
             );
 
 
-            let group =
-                [];
+            let group = [];
 
 
             lineItems.forEach(
@@ -2186,22 +2609,17 @@ function redrawAllStrikes() {
                 function (item) {
 
                     if (
-                        group.length ===
-                        0
+                        group.length === 0
                     ) {
 
-                        group.push(
-                            item
-                        );
-
+                        group.push(item);
                         return;
                     }
 
 
                     const previous =
                         group[
-                            group.length -
-                            1
+                            group.length - 1
                         ];
 
 
@@ -2228,17 +2646,14 @@ function redrawAllStrikes() {
                             group
                         );
 
-
-                        group =
-                            [item];
+                        group = [item];
                     }
                 }
             );
 
 
             if (
-                group.length >
-                0
+                group.length > 0
             ) {
 
                 drawContinuousStrike(
@@ -2251,7 +2666,7 @@ function redrawAllStrikes() {
 
 
 // ==========================================
-// STRIKE PREVIOUS CHARACTER
+// BACKSPACE → STRIKE
 // ==========================================
 
 function strikePreviousCharacter() {
@@ -2264,7 +2679,6 @@ function strikePreviousCharacter() {
             history[
                 strikeIndex
             ];
-
 
         strikeIndex--;
 
@@ -2279,16 +2693,13 @@ function strikePreviousCharacter() {
         }
 
 
-        if (
-            item.struck
-        ) {
+        if (item.struck) {
 
             continue;
         }
 
 
-        item.struck =
-            true;
+        item.struck = true;
 
 
         const sameLineStruck =
@@ -2311,10 +2722,7 @@ function strikePreviousCharacter() {
 
             function (a, b) {
 
-                return (
-                    a.x -
-                    b.x
-                );
+                return a.x - b.x;
             }
         );
 
@@ -2322,15 +2730,12 @@ function strikePreviousCharacter() {
         const connected =
             [item];
 
-
-        let changed =
-            true;
+        let changed = true;
 
 
         while (changed) {
 
-            changed =
-                false;
+            changed = false;
 
 
             sameLineStruck.forEach(
@@ -2349,7 +2754,6 @@ function strikePreviousCharacter() {
 
                     const candidateStart =
                         candidate.x;
-
 
                     const candidateEnd =
                         candidate.x +
@@ -2393,9 +2797,7 @@ function strikePreviousCharacter() {
                             candidate
                         );
 
-
-                        changed =
-                            true;
+                        changed = true;
                     }
                 }
             );
@@ -2406,23 +2808,33 @@ function strikePreviousCharacter() {
             connected
         );
 
-
         break;
     }
 
 
     resetCursor();
+
+    updateCanvasSize();
+
+    requestAnimationFrame(
+        followCursor
+    );
 }
 
 
 // ==========================================
-// LOAD SAVED LETTER
+// LOAD SENT LETTER
 // ==========================================
 
 function loadSavedLetter(data) {
 
-    history =
-        [];
+    history = [];
+
+    let maximumX =
+        window.innerWidth;
+
+    let maximumY =
+        window.innerHeight;
 
 
     data.forEach(
@@ -2441,7 +2853,6 @@ function loadSavedLetter(data) {
                         item.y,
                         item.stretch
                     );
-
 
                 if (!result) {
                     return;
@@ -2482,6 +2893,25 @@ function loadSavedLetter(data) {
                 });
 
 
+                maximumX =
+                    Math.max(
+                        maximumX,
+                        item.x +
+                        item.width +
+                        RIGHT_MARGIN +
+                        100
+                    );
+
+
+                maximumY =
+                    Math.max(
+                        maximumY,
+                        item.y +
+                        LETTER_HEIGHT +
+                        150
+                    );
+
+
                 cursorY =
                     Math.max(
                         cursorY,
@@ -2503,10 +2933,20 @@ function loadSavedLetter(data) {
                 });
 
 
-                cursorY =
+                maximumX =
                     Math.max(
-                        cursorY,
-                        item.y
+                        maximumX,
+                        item.x +
+                        100
+                    );
+
+
+                maximumY =
+                    Math.max(
+                        maximumY,
+                        item.y +
+                        LINE_HEIGHT +
+                        150
                     );
             }
         }
@@ -2516,11 +2956,70 @@ function loadSavedLetter(data) {
     redrawAllStrikes();
 
 
-    updateCanvasHeight();
+    // ======================================
+    // MOBILE RECIPIENT
+    // ======================================
+
+    if (isMobile) {
+
+        canvas.setAttribute(
+            "width",
+            maximumX
+        );
+
+        canvas.setAttribute(
+            "height",
+            maximumY
+        );
+
+        canvas.style.width =
+            maximumX + "px";
+
+        canvas.style.height =
+            maximumY + "px";
 
 
-    // Recipient view:
-    // hide all editing controls.
+        document.documentElement.style.overflowX =
+            "auto";
+
+        document.documentElement.style.overflowY =
+            "auto";
+
+        document.body.style.overflowX =
+            "auto";
+
+        document.body.style.overflowY =
+            "auto";
+
+        document.body.style.touchAction =
+            "pan-x pan-y";
+
+        canvas.style.touchAction =
+            "pan-x pan-y";
+    }
+
+
+    // ======================================
+    // DESKTOP RECIPIENT
+    // ======================================
+
+    else {
+
+        // Keep desktop presentation behaving
+        // as it did before.
+
+        canvas.setAttribute(
+            "height",
+            maximumY
+        );
+
+        canvas.style.width =
+            "100%";
+
+        canvas.style.height =
+            maximumY + "px";
+    }
+
 
     if (interfaceButton) {
 
@@ -2541,11 +3040,20 @@ function loadSavedLetter(data) {
         cursorGroup.style.display =
             "none";
     }
+
+
+    if (mobileInput) {
+
+        mobileInput.blur();
+
+        mobileInput.style.display =
+            "none";
+    }
 }
 
 
 // ==========================================
-// KEYBOARD
+// DESKTOP KEYBOARD
 // ==========================================
 
 window.addEventListener(
@@ -2555,9 +3063,17 @@ window.addEventListener(
     function (event) {
 
 
-        // ----------------------------------
-        // READ-ONLY / SEALED
-        // ----------------------------------
+        // Mobile textarea handles mobile input.
+
+        if (
+            mobileInput &&
+            document.activeElement ===
+                mobileInput
+        ) {
+
+            return;
+        }
+
 
         if (
             isSealed ||
@@ -2568,9 +3084,7 @@ window.addEventListener(
         }
 
 
-        // ----------------------------------
         // ENTER
-        // ----------------------------------
 
         if (
             event.key ===
@@ -2579,50 +3093,13 @@ window.addEventListener(
 
             event.preventDefault();
 
-
-            history.push({
-
-                type:
-                    "return",
-
-                x:
-                    cursorX,
-
-                y:
-                    cursorY
-            });
-
-
-            cursorX =
-                LEFT_MARGIN;
-
-
-            cursorY +=
-                LINE_HEIGHT;
-
-
-            lastKeyTime =
-                null;
-
-
-            strikeIndex =
-                history.length -
-                1;
-
-
-            resetCursor();
-
-
-            updateCanvasHeight();
-
+            handleReturn();
 
             return;
         }
 
 
-        // ----------------------------------
         // BACKSPACE
-        // ----------------------------------
 
         if (
             event.key ===
@@ -2631,17 +3108,13 @@ window.addEventListener(
 
             event.preventDefault();
 
-
             strikePreviousCharacter();
-
 
             return;
         }
 
 
-        // ----------------------------------
-        // IGNORE SHORTCUTS
-        // ----------------------------------
+        // SHORTCUTS
 
         if (
             event.metaKey ||
@@ -2654,8 +3127,7 @@ window.addEventListener(
 
 
         if (
-            event.key.length !==
-            1
+            event.key.length !== 1
         ) {
 
             return;
@@ -2665,138 +3137,27 @@ window.addEventListener(
         event.preventDefault();
 
 
-        // ----------------------------------
         // SPACE
-        // ----------------------------------
 
         if (
-            event.key ===
-            " "
+            event.key === " "
         ) {
 
-            history.push({
-
-                type:
-                    "space",
-
-                x:
-                    cursorX,
-
-                y:
-                    cursorY
-            });
-
-
-            cursorX +=
-                SPACE_WIDTH;
-
-
-            if (
-                cursorX >
-                window.innerWidth -
-                RIGHT_MARGIN
-            ) {
-
-                cursorX =
-                    LEFT_MARGIN;
-
-
-                cursorY +=
-                    LINE_HEIGHT;
-            }
-
-
-            strikeIndex =
-                history.length -
-                1;
-
-
-            resetCursor();
-
-
-            updateCanvasHeight();
-
+            handleSpace();
 
             return;
         }
 
 
-        // ----------------------------------
-        // CHARACTER
-        // ----------------------------------
-
-        let character =
-            event.key;
-
-
-        if (
-            /^[a-zA-Z]$/.test(
-                character
-            )
-        ) {
-
-            character =
-                character.toUpperCase();
-        }
-
-
-        if (
-            !glyphs[
-                character
-            ]
-        ) {
-
-            console.warn(
-                "Unsupported character:",
-                character
-            );
-
-
-            return;
-        }
-
-
-        // ----------------------------------
-        // MEASURE TYPING INTERVAL
-        // ----------------------------------
-
-        const now =
-            performance.now();
-
-
-        let interval =
-            200;
-
-
-        if (
-            lastKeyTime !==
-            null
-        ) {
-
-            interval =
-                now -
-                lastKeyTime;
-        }
-
-
-        lastKeyTime =
-            now;
-
-
-        // ----------------------------------
-        // DRAW
-        // ----------------------------------
-
-        drawGlyph(
-            character,
-            interval
+        processTypedCharacter(
+            event.key
         );
     }
 );
 
 
 // ==========================================
-// WINDOW RESIZE
+// RESIZE
 // ==========================================
 
 window.addEventListener(
@@ -2805,13 +3166,16 @@ window.addEventListener(
 
     function () {
 
-        updateCanvasHeight();
+        if (!isReadOnly) {
+
+            updateCanvasSize();
+        }
     }
 );
 
 
 // ==========================================
-// INITIAL CANVAS HEIGHT
+// INITIAL SIZE
 // ==========================================
 
-updateCanvasHeight();
+updateCanvasSize();
