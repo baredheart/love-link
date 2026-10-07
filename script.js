@@ -8,6 +8,31 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 
 
 // ==========================================
+// SUPABASE
+// ==========================================
+
+const SUPABASE_URL =
+    "https://ibsdnsqavmrugzobgitr.supabase.co";
+
+const SUPABASE_KEY =
+    "sb_publishable_KTmiZGedhB2yst5FvPhOJQ_E97k4Jno";
+
+const supabaseClient =
+    window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+    );
+
+
+// ==========================================
+// BARED HEART URL
+// ==========================================
+
+const SITE_URL =
+    "https://baredheart.github.io/love-link/";
+
+
+// ==========================================
 // PAGE SETTINGS
 // ==========================================
 
@@ -60,13 +85,10 @@ const BUTTON_RIGHT = 30;
 const BUTTON_LEFT = 30;
 const BUTTON_BOTTOM = 30;
 
-// ALL BUTTONS = 115PX
 const BUTTON_WIDTH = 115;
 
-// Smooth transition
 const BUTTON_TRANSITION = 280;
 
-// Framer website
 const FRAMER_URL =
     "https://baredheart.framer.website/";
 
@@ -99,8 +121,6 @@ let strikeIndex = -1;
 
 const glyphFiles = {
 
-    // LETTERS
-
     A: "./glyphs/A.svg",
     B: "./glyphs/B.svg",
     C: "./glyphs/C.svg",
@@ -128,8 +148,6 @@ const glyphFiles = {
     Y: "./glyphs/Y.svg",
     Z: "./glyphs/Z.svg",
 
-    // NUMBERS
-
     "0": "./glyphs/0.svg",
     "1": "./glyphs/1.svg",
     "2": "./glyphs/2.svg",
@@ -140,8 +158,6 @@ const glyphFiles = {
     "7": "./glyphs/7.svg",
     "8": "./glyphs/8.svg",
     "9": "./glyphs/9.svg",
-
-    // PUNCTUATION
 
     "'": "./glyphs/apostrophe.svg",
     '"': "./glyphs/quotation.svg",
@@ -154,8 +170,6 @@ const glyphFiles = {
 
     "?": "./glyphs/question.svg",
     "!": "./glyphs/exclamation.svg",
-
-    // SYMBOLS
 
     "+": "./glyphs/plus.svg",
     "-": "./glyphs/hyphen.svg",
@@ -173,27 +187,17 @@ const glyphFiles = {
     "@": "./glyphs/at.svg",
     "&": "./glyphs/ampersand.svg",
 
-    // SLASHES
-
     "/": "./glyphs/slash.svg",
     "\\": "./glyphs/backslash.svg",
-
-    // ANGLE BRACKETS
 
     "<": "./glyphs/less-than.svg",
     ">": "./glyphs/greater-than.svg",
 
-    // PARENTHESES
-
     "(": "./glyphs/left-parenthesis.svg",
     ")": "./glyphs/right-parenthesis.svg",
 
-    // SQUARE BRACKETS
-
     "[": "./glyphs/left-square-bracket.svg",
     "]": "./glyphs/right-square-bracket.svg",
-
-    // CURLY BRACES
 
     "{": "./glyphs/left-curly-brace.svg",
     "}": "./glyphs/right-curly-brace.svg"
@@ -266,46 +270,61 @@ async function loadEverything() {
             }
 
         )
-
     );
+
 
     cursorSource =
         await loadSVG(
             "./glyphs/cursor.svg"
         );
 
+
     strikeSource =
         await loadSVG(
             "./glyphs/strike-through.svg"
         );
 
+
     createInterfaceButton();
     createBackButton();
 
-    const savedLetter =
-        getLetterFromURL();
 
-    if (savedLetter) {
+    // --------------------------------------
+    // CHECK FOR SHORT HEART ID
+    // --------------------------------------
+
+    const heartID =
+        getHeartIDFromURL();
+
+
+    if (heartID) {
 
         isReadOnly = true;
         isSealed = true;
 
-        loadSavedLetter(
-            savedLetter
+        await loadHeartFromSupabase(
+            heartID
         );
 
-    } else {
-
-        if (cursorSource) {
-
-            createCursor();
-        }
-
-        setButtonState(
-            "seal",
-            false
-        );
+        return;
     }
+
+
+    // --------------------------------------
+    // NORMAL WRITING MODE
+    // --------------------------------------
+
+    if (cursorSource) {
+
+        createCursor();
+    }
+
+
+    setButtonState(
+        "seal",
+        false
+    );
+
 
     console.log(
         "Bared Heart loaded!"
@@ -314,6 +333,201 @@ async function loadEverything() {
 
 
 loadEverything();
+
+
+// ==========================================
+// CREATE RANDOM HEART ID
+// ==========================================
+
+function generateHeartID() {
+
+    // Removed confusing characters:
+    // I, O, 0 and 1
+
+    const characters =
+        "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+
+    let id = "";
+
+
+    for (
+        let i = 0;
+        i < 5;
+        i++
+    ) {
+
+        const randomIndex =
+            Math.floor(
+                Math.random() *
+                characters.length
+            );
+
+
+        id +=
+            characters[
+                randomIndex
+            ];
+    }
+
+
+    return id;
+}
+
+
+// ==========================================
+// GET HEART ID FROM URL
+// ==========================================
+
+function getHeartIDFromURL() {
+
+    if (!window.location.hash) {
+
+        return null;
+    }
+
+
+    const id =
+        window.location.hash
+            .substring(1)
+            .trim()
+            .toUpperCase();
+
+
+    if (
+        !/^[A-Z2-9]{5}$/.test(id)
+    ) {
+
+        return null;
+    }
+
+
+    return id;
+}
+
+
+// ==========================================
+// SAVE HEART TO SUPABASE
+// ==========================================
+
+async function saveHeartToSupabase(
+    letterData
+) {
+
+    // Try multiple IDs in the very unlikely
+    // event that one already exists.
+
+    for (
+        let attempt = 0;
+        attempt < 10;
+        attempt++
+    ) {
+
+        const heartID =
+            generateHeartID();
+
+
+        const { error } =
+            await supabaseClient
+                .from("hearts")
+                .insert({
+
+                    id:
+                        heartID,
+
+                    letter_data:
+                        letterData
+                });
+
+
+        if (!error) {
+
+            return heartID;
+        }
+
+
+        // PostgreSQL duplicate primary key
+        // error. Generate another ID.
+
+        if (
+            error.code ===
+            "23505"
+        ) {
+
+            continue;
+        }
+
+
+        console.error(
+            "Could not save heart:",
+            error
+        );
+
+
+        throw error;
+    }
+
+
+    throw new Error(
+        "Could not create a unique heart ID."
+    );
+}
+
+
+// ==========================================
+// LOAD HEART FROM SUPABASE
+// ==========================================
+
+async function loadHeartFromSupabase(
+    heartID
+) {
+
+    const { data, error } =
+        await supabaseClient
+            .from("hearts")
+            .select("letter_data")
+            .eq(
+                "id",
+                heartID
+            )
+            .maybeSingle();
+
+
+    if (error) {
+
+        console.error(
+            "Could not load heart:",
+            error
+        );
+
+        return;
+    }
+
+
+    if (
+        !data ||
+        !data.letter_data
+    ) {
+
+        console.error(
+            "Heart not found:",
+            heartID
+        );
+
+        return;
+    }
+
+
+    loadSavedLetter(
+        data.letter_data
+    );
+
+
+    console.log(
+        "Heart opened:",
+        heartID
+    );
+}
 
 
 // ==========================================
@@ -331,6 +545,7 @@ function getStretch(interval) {
             MAX_TIME
         );
 
+
     let amount =
         (
             time -
@@ -342,11 +557,13 @@ function getStretch(interval) {
             MIN_TIME
         );
 
+
     amount =
         Math.pow(
             amount,
             1.1
         );
+
 
     return (
         MIN_STRETCH +
@@ -368,6 +585,7 @@ function preserveStrokeWidth(element) {
     const selectors =
         "path, line, polyline, polygon, circle, ellipse, rect";
 
+
     if (
         element.matches &&
         element.matches(selectors)
@@ -378,6 +596,7 @@ function preserveStrokeWidth(element) {
             "non-scaling-stroke"
         );
     }
+
 
     if (element.querySelectorAll) {
 
@@ -412,44 +631,54 @@ function createInterfaceButton() {
             "img"
         );
 
+
     interfaceButton.id =
         "heart-button";
+
 
     interfaceButton.style.position =
         "fixed";
 
+
     interfaceButton.style.right =
         BUTTON_RIGHT + "px";
+
 
     interfaceButton.style.bottom =
         BUTTON_BOTTOM + "px";
 
+
     interfaceButton.style.width =
         BUTTON_WIDTH + "px";
+
 
     interfaceButton.style.height =
         "auto";
 
+
     interfaceButton.style.zIndex =
         "9999";
+
 
     interfaceButton.style.cursor =
         "pointer";
 
+
     interfaceButton.style.opacity =
         "1";
+
 
     interfaceButton.style.transition =
         `opacity ${BUTTON_TRANSITION}ms ease-in-out`;
 
+
     interfaceButton.style.userSelect =
         "none";
+
 
     interfaceButton.draggable =
         false;
 
-
-    // HOVER
 
     interfaceButton.addEventListener(
 
@@ -463,7 +692,6 @@ function createInterfaceButton() {
                     "0.7";
             }
         }
-
     );
 
 
@@ -476,18 +704,14 @@ function createInterfaceButton() {
             interfaceButton.style.opacity =
                 "1";
         }
-
     );
 
-
-    // CLICK
 
     interfaceButton.addEventListener(
 
         "click",
 
         handleButtonClick
-
     );
 
 
@@ -511,54 +735,66 @@ function createBackButton() {
             "img"
         );
 
+
     backButton.id =
         "back-button";
 
-    // EXACT FILE NAME
+
     backButton.src =
         "./glyphs/back-button.svg";
+
 
     backButton.style.position =
         "fixed";
 
+
     backButton.style.left =
         BUTTON_LEFT + "px";
+
 
     backButton.style.bottom =
         BUTTON_BOTTOM + "px";
 
+
     backButton.style.width =
         BUTTON_WIDTH + "px";
+
 
     backButton.style.height =
         "auto";
 
+
     backButton.style.zIndex =
         "9999";
+
 
     backButton.style.cursor =
         "pointer";
 
+
     backButton.style.opacity =
         "0";
+
 
     backButton.style.visibility =
         "hidden";
 
+
     backButton.style.pointerEvents =
         "none";
+
 
     backButton.style.transition =
         `opacity ${BUTTON_TRANSITION}ms ease-in-out`;
 
+
     backButton.style.userSelect =
         "none";
+
 
     backButton.draggable =
         false;
 
-
-    // HOVER
 
     backButton.addEventListener(
 
@@ -569,7 +805,6 @@ function createBackButton() {
             backButton.style.opacity =
                 "0.7";
         }
-
     );
 
 
@@ -582,11 +817,8 @@ function createBackButton() {
             backButton.style.opacity =
                 "1";
         }
-
     );
 
-
-    // CLICK → BACK TO FRAMER
 
     backButton.addEventListener(
 
@@ -597,7 +829,6 @@ function createBackButton() {
             window.location.href =
                 FRAMER_URL;
         }
-
     );
 
 
@@ -621,8 +852,10 @@ function showBackButton() {
     backButton.style.visibility =
         "visible";
 
+
     backButton.style.pointerEvents =
         "auto";
+
 
     backButton.style.opacity =
         "0";
@@ -639,10 +872,8 @@ function showBackButton() {
                     backButton.style.opacity =
                         "1";
                 }
-
             );
         }
-
     );
 }
 
@@ -669,6 +900,7 @@ function setButtonState(
         newSource =
             "./glyphs/seal-button.svg";
 
+
         interfaceButton.style.cursor =
             "pointer";
     }
@@ -678,6 +910,7 @@ function setButtonState(
 
         newSource =
             "./glyphs/collect-button.svg";
+
 
         interfaceButton.style.cursor =
             "pointer";
@@ -689,6 +922,7 @@ function setButtonState(
         newSource =
             "./glyphs/collected-button.svg";
 
+
         interfaceButton.style.cursor =
             "default";
     }
@@ -699,30 +933,33 @@ function setButtonState(
     }
 
 
-    // INITIAL LOAD
-
     if (!animate) {
 
         interfaceButton.src =
             newSource;
 
+
         interfaceButton.style.opacity =
             "1";
+
+
+        interfaceButton.style.pointerEvents =
+            state === "collected"
+                ? "none"
+                : "auto";
+
 
         return;
     }
 
 
-    // FADE CURRENT BUTTON OUT
-
     interfaceButton.style.pointerEvents =
         "none";
+
 
     interfaceButton.style.opacity =
         "0";
 
-
-    // CHANGE SVG WHILE INVISIBLE
 
     setTimeout(
 
@@ -731,8 +968,6 @@ function setButtonState(
             interfaceButton.src =
                 newSource;
 
-
-            // FADE NEW BUTTON IN
 
             requestAnimationFrame(
 
@@ -751,11 +986,8 @@ function setButtonState(
                             "auto";
                     }
                 }
-
             );
 
-
-            // COLLECTED + BACK APPEAR TOGETHER
 
             if (
                 state ===
@@ -768,7 +1000,6 @@ function setButtonState(
         },
 
         BUTTON_TRANSITION
-
     );
 }
 
@@ -779,12 +1010,14 @@ function setButtonState(
 
 async function handleButtonClick() {
 
-    if (isReadOnly) {
+    if (
+        isReadOnly ||
+        isCollected
+    ) {
+
         return;
     }
 
-
-    // SEAL
 
     if (!isSealed) {
 
@@ -794,16 +1027,12 @@ async function handleButtonClick() {
     }
 
 
-    // COLLECT
-
     if (
         isSealed &&
         !isCollected
     ) {
 
         await collectLetter();
-
-        return;
     }
 }
 
@@ -818,8 +1047,6 @@ function sealLetter() {
         true;
 
 
-    // HIDE CURSOR
-
     if (cursorGroup) {
 
         cursorGroup.style.display =
@@ -827,20 +1054,17 @@ function sealLetter() {
     }
 
 
-    // STOP CURSOR ANIMATION
-
     if (cursorAnimationFrame) {
 
         cancelAnimationFrame(
             cursorAnimationFrame
         );
 
+
         cursorAnimationFrame =
             null;
     }
 
-
-    // SEAL → COLLECT
 
     setButtonState(
         "collect"
@@ -859,32 +1083,52 @@ function sealLetter() {
 
 async function collectLetter() {
 
-    const letterData =
-        createLetterData();
+    // Prevent double clicks while saving.
 
+    if (interfaceButton) {
 
-    const encoded =
-        encodeLetterData(
-            letterData
-        );
-
-
-    const baseURL =
-        window.location.origin +
-        window.location.pathname;
-
-
-    const shareURL =
-        baseURL +
-        "#heart=" +
-        encoded;
+        interfaceButton.style.pointerEvents =
+            "none";
+    }
 
 
     try {
 
-        await navigator.clipboard.writeText(
-            shareURL
-        );
+        const letterData =
+            createLetterData();
+
+
+        // Save complete letter to Supabase
+        // and receive its unique short ID.
+
+        const heartID =
+            await saveHeartToSupabase(
+                letterData
+            );
+
+
+        // Clean short URL.
+
+        const shareURL =
+            SITE_URL +
+            "#" +
+            heartID;
+
+
+        // Copy it to sender's clipboard.
+
+        try {
+
+            await navigator.clipboard.writeText(
+                shareURL
+            );
+
+        } catch (clipboardError) {
+
+            fallbackCopy(
+                shareURL
+            );
+        }
 
 
         isCollected =
@@ -897,29 +1141,27 @@ async function collectLetter() {
 
 
         console.log(
-            "Heart collected. Link copied."
-        );
-
-    } catch (error) {
-
-        console.error(
-            "Could not copy link:",
-            error
-        );
-
-
-        fallbackCopy(
+            "Heart collected:",
             shareURL
         );
 
 
-        isCollected =
-            true;
+    } catch (error) {
 
-
-        setButtonState(
-            "collected"
+        console.error(
+            "Heart could not be collected:",
+            error
         );
+
+
+        // Let them try COLLECT again if
+        // saving failed.
+
+        if (interfaceButton) {
+
+            interfaceButton.style.pointerEvents =
+                "auto";
+        }
     }
 }
 
@@ -942,6 +1184,7 @@ function fallbackCopy(text) {
 
     textArea.style.position =
         "fixed";
+
 
     textArea.style.opacity =
         "0";
@@ -1040,150 +1283,6 @@ function createLetterData() {
                     ) / 100
             };
         }
-
-    );
-}
-
-
-// ==========================================
-// ENCODE LETTER INTO URL
-// ==========================================
-
-function encodeLetterData(data) {
-
-    const json =
-        JSON.stringify(
-            data
-        );
-
-
-    const bytes =
-        new TextEncoder().encode(
-            json
-        );
-
-
-    let binary =
-        "";
-
-
-    bytes.forEach(
-
-        function (byte) {
-
-            binary +=
-                String.fromCharCode(
-                    byte
-                );
-        }
-
-    );
-
-
-    return btoa(binary)
-        .replace(/\+/g, "-")
-        .replace(/\//g, "_")
-        .replace(/=+$/g, "");
-}
-
-
-// ==========================================
-// DECODE LETTER FROM URL
-// ==========================================
-
-function decodeLetterData(encoded) {
-
-    try {
-
-        let base64 =
-            encoded
-                .replace(/-/g, "+")
-                .replace(/_/g, "/");
-
-
-        while (
-            base64.length % 4
-        ) {
-
-            base64 += "=";
-        }
-
-
-        const binary =
-            atob(base64);
-
-
-        const bytes =
-            Uint8Array.from(
-
-                binary,
-
-                function (character) {
-
-                    return character.charCodeAt(
-                        0
-                    );
-                }
-
-            );
-
-
-        const json =
-            new TextDecoder().decode(
-                bytes
-            );
-
-
-        return JSON.parse(
-            json
-        );
-
-    } catch (error) {
-
-        console.error(
-            "Could not read collected heart:",
-            error
-        );
-
-
-        return null;
-    }
-}
-
-
-// ==========================================
-// CHECK URL FOR SAVED LETTER
-// ==========================================
-
-function getLetterFromURL() {
-
-    const prefix =
-        "#heart=";
-
-
-    if (
-        !window.location.hash.startsWith(
-            prefix
-        )
-    ) {
-
-        return null;
-    }
-
-
-    const encoded =
-        window.location.hash.slice(
-            prefix.length
-        );
-
-
-    if (!encoded) {
-        return null;
-    }
-
-
-    return decodeLetterData(
-        encoded
     );
 }
 
@@ -1252,7 +1351,6 @@ function createCursor() {
                 copy
             );
         }
-
     );
 
 
@@ -1527,7 +1625,6 @@ function ensureCursorVisible() {
             top:
                 Math.max(
                     0,
-
                     cursorY -
                     window.innerHeight *
                     0.55
@@ -1564,7 +1661,6 @@ function updateCanvasHeight() {
             requiredHeight,
             minimumHeight
         )
-
     );
 }
 
@@ -1647,7 +1743,6 @@ function createGlyphElement(
                 copy
             );
         }
-
     );
 
 
@@ -1869,13 +1964,12 @@ function removeStrikeGroups(items) {
             item.strikeElement =
                 null;
         }
-
     );
 }
 
 
 // ==========================================
-// DRAW ONE CONTINUOUS STRIKE
+// DRAW CONTINUOUS STRIKE
 // ==========================================
 
 function drawContinuousStrike(items) {
@@ -1915,7 +2009,6 @@ function drawContinuousStrike(items) {
                     item.width
                 );
         }
-
     );
 
 
@@ -1976,7 +2069,6 @@ function drawContinuousStrike(items) {
                 copy
             );
         }
-
     );
 
 
@@ -2004,7 +2096,6 @@ function drawContinuousStrike(items) {
             item.strikeElement =
                 strikeGroup;
         }
-
     );
 
 
@@ -2037,7 +2128,6 @@ function redrawAllStrikes() {
                     item.struck
                 );
             }
-
         );
 
 
@@ -2068,7 +2158,6 @@ function redrawAllStrikes() {
                 item
             );
         }
-
     );
 
 
@@ -2085,7 +2174,6 @@ function redrawAllStrikes() {
                         b.x
                     );
                 }
-
             );
 
 
@@ -2145,7 +2233,6 @@ function redrawAllStrikes() {
                             [item];
                     }
                 }
-
             );
 
 
@@ -2159,7 +2246,6 @@ function redrawAllStrikes() {
                 );
             }
         }
-
     );
 }
 
@@ -2208,9 +2294,7 @@ function strikePreviousCharacter() {
         const sameLineStruck =
             history.filter(
 
-                function (
-                    historyItem
-                ) {
+                function (historyItem) {
 
                     return (
                         historyItem.type ===
@@ -2220,7 +2304,6 @@ function strikePreviousCharacter() {
                             item.y
                     );
                 }
-
             );
 
 
@@ -2233,7 +2316,6 @@ function strikePreviousCharacter() {
                     b.x
                 );
             }
-
         );
 
 
@@ -2253,9 +2335,7 @@ function strikePreviousCharacter() {
 
             sameLineStruck.forEach(
 
-                function (
-                    candidate
-                ) {
+                function (candidate) {
 
                     if (
                         connected.includes(
@@ -2318,7 +2398,6 @@ function strikePreviousCharacter() {
                             true;
                     }
                 }
-
             );
         }
 
@@ -2337,7 +2416,7 @@ function strikePreviousCharacter() {
 
 
 // ==========================================
-// LOAD SAVED / COLLECTED LETTER
+// LOAD SAVED LETTER
 // ==========================================
 
 function loadSavedLetter(data) {
@@ -2431,7 +2510,6 @@ function loadSavedLetter(data) {
                     );
             }
         }
-
     );
 
 
@@ -2441,8 +2519,8 @@ function loadSavedLetter(data) {
     updateCanvasHeight();
 
 
-    // RECEIVED HEART IS READ-ONLY
-    // NO BUTTONS / NO CURSOR
+    // Recipient view:
+    // hide all editing controls.
 
     if (interfaceButton) {
 
@@ -2477,25 +2555,22 @@ window.addEventListener(
     function (event) {
 
 
-        // ==================================
-        // SEALED / READ-ONLY
-        // ==================================
+        // ----------------------------------
+        // READ-ONLY / SEALED
+        // ----------------------------------
 
         if (
             isSealed ||
             isReadOnly
         ) {
 
-            // Typing/editing disabled.
-            // Scrolling remains available.
-
             return;
         }
 
 
-        // ==================================
+        // ----------------------------------
         // ENTER
-        // ==================================
+        // ----------------------------------
 
         if (
             event.key ===
@@ -2545,9 +2620,9 @@ window.addEventListener(
         }
 
 
-        // ==================================
+        // ----------------------------------
         // BACKSPACE
-        // ==================================
+        // ----------------------------------
 
         if (
             event.key ===
@@ -2564,9 +2639,9 @@ window.addEventListener(
         }
 
 
-        // ==================================
-        // IGNORE COMPUTER SHORTCUTS
-        // ==================================
+        // ----------------------------------
+        // IGNORE SHORTCUTS
+        // ----------------------------------
 
         if (
             event.metaKey ||
@@ -2590,9 +2665,9 @@ window.addEventListener(
         event.preventDefault();
 
 
-        // ==================================
+        // ----------------------------------
         // SPACE
-        // ==================================
+        // ----------------------------------
 
         if (
             event.key ===
@@ -2646,9 +2721,9 @@ window.addEventListener(
         }
 
 
-        // ==================================
+        // ----------------------------------
         // CHARACTER
-        // ==================================
+        // ----------------------------------
 
         let character =
             event.key;
@@ -2681,9 +2756,9 @@ window.addEventListener(
         }
 
 
-        // ==================================
-        // MEASURE KEYSTROKE INTERVAL
-        // ==================================
+        // ----------------------------------
+        // MEASURE TYPING INTERVAL
+        // ----------------------------------
 
         const now =
             performance.now();
@@ -2708,16 +2783,15 @@ window.addEventListener(
             now;
 
 
-        // ==================================
+        // ----------------------------------
         // DRAW
-        // ==================================
+        // ----------------------------------
 
         drawGlyph(
             character,
             interval
         );
     }
-
 );
 
 
@@ -2733,7 +2807,6 @@ window.addEventListener(
 
         updateCanvasHeight();
     }
-
 );
 
 
