@@ -81,8 +81,6 @@ const SLOWDOWN_END = 4500;
 const BUTTON_RIGHT = 30;
 const BUTTON_LEFT = 30;
 
-// Mobile buttons sit 20px lower.
-// Desktop remains at its original 30px.
 const BUTTON_BOTTOM = isMobile ? 10 : 30;
 
 const BUTTON_WIDTH = 115;
@@ -284,8 +282,7 @@ function setupMobilePage() {
 // MOBILE KEYBOARD — BUTTON VISIBILITY
 // ==========================================
 
-// Buttons now stay visible whether the
-// mobile keyboard is open or closed.
+// Buttons remain visible while typing.
 
 function updateMobileButtons() {
     if (!isMobile || isReadOnly) return;
@@ -349,6 +346,13 @@ function createMobileInput() {
 
     mobileInput.addEventListener("focus", function () {
         setMobileKeyboardOpen(true);
+
+        // Allow Safari's keyboard animation to finish
+        // before moving the writing area.
+        setTimeout(function () {
+            updateCanvasSize();
+            followMobileCursor();
+        }, 350);
     });
 
     mobileInput.addEventListener("blur", function () {
@@ -447,10 +451,16 @@ function checkMobileKeyboardViewport() {
 }
 
 if (isMobile && window.visualViewport) {
-    window.visualViewport.addEventListener(
-        "resize",
-        checkMobileKeyboardViewport
-    );
+    window.visualViewport.addEventListener("resize", function () {
+        checkMobileKeyboardViewport();
+
+        // Recalculate the visible typing area
+        // whenever the keyboard changes height.
+        if (!isSealed && !isReadOnly) {
+            updateCanvasSize();
+            followMobileCursor();
+        }
+    });
 
     window.visualViewport.addEventListener(
         "scroll",
@@ -988,10 +998,15 @@ function followDesktopCursor() {
     }
 }
 
+// MOBILE ONLY:
+// Keep the active typing line visible above
+// the iPhone keyboard as the letter grows.
+
 function followMobileCursor() {
     if (!isMobile || isSealed || isReadOnly) return;
 
     const viewport = window.visualViewport;
+
     const visibleHeight = viewport
         ? viewport.height
         : window.innerHeight;
@@ -1000,31 +1015,25 @@ function followMobileCursor() {
         ? viewport.offsetTop
         : 0;
 
-    const screenY =
-        cursorY - window.scrollY - visibleTop;
+    const cursorBottom = cursorY + LETTER_HEIGHT;
 
-    const safeBottom = visibleHeight * 0.58;
-    const safeTop = visibleHeight * 0.15;
+    // Leave 100px between the active line
+    // and the bottom of the visible viewport.
+    const safeBottom =
+        visibleTop + visibleHeight - 100;
 
-    let targetY = window.scrollY;
+    const cursorScreenBottom =
+        cursorBottom - window.scrollY;
 
-    if (screenY > safeBottom) {
-        targetY =
-            cursorY - visibleTop - visibleHeight * 0.42;
+    if (cursorScreenBottom > safeBottom) {
+        const targetScroll =
+            cursorBottom - safeBottom;
+
+        window.scrollTo({
+            top: Math.max(0, targetScroll),
+            behavior: "smooth"
+        });
     }
-
-    if (screenY < safeTop) {
-        targetY =
-            cursorY - visibleTop - visibleHeight * 0.15;
-    }
-
-    targetY = Math.max(0, targetY);
-
-    window.scrollTo({
-        left: 0,
-        top: targetY,
-        behavior: "smooth"
-    });
 }
 
 function followCursor() {
@@ -1041,7 +1050,8 @@ function followCursor() {
 
 function updateCanvasSize() {
     const requiredHeight = Math.max(
-        cursorY + LINE_HEIGHT + 150,
+        cursorY + LINE_HEIGHT +
+            (isMobile ? window.innerHeight : 150),
         window.innerHeight
     );
 
@@ -1637,6 +1647,7 @@ window.addEventListener("resize", function () {
 
     if (isMobile) {
         checkMobileKeyboardViewport();
+        followMobileCursor();
     }
 });
 
