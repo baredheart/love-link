@@ -379,6 +379,53 @@ function focusMobileInput() {
 }
 
 // ==========================================
+// MOBILE KEYBOARD — HIDE BUTTONS
+// ==========================================
+
+function updateMobileButtons() {
+
+    if (!isMobile || isReadOnly) return;
+
+    const viewport = window.visualViewport;
+
+    if (!viewport) return;
+
+    const keyboardOpen =
+        window.innerHeight - viewport.height > 150;
+
+    if (interfaceButton) {
+
+        interfaceButton.style.visibility =
+            keyboardOpen ? "hidden" : "visible";
+    }
+
+    if (backButton) {
+
+        // Preserve the back button's own
+        // visibility state when the keyboard
+        // is not open.
+
+        backButton.style.visibility =
+            keyboardOpen
+                ? "hidden"
+                : (isCollected ? "visible" : "hidden");
+    }
+}
+
+if (isMobile && window.visualViewport) {
+
+    window.visualViewport.addEventListener(
+        "resize",
+        updateMobileButtons
+    );
+
+    window.visualViewport.addEventListener(
+        "scroll",
+        updateMobileButtons
+    );
+}
+
+// ==========================================
 // HEART ID
 // ==========================================
 
@@ -1462,7 +1509,7 @@ function strikePreviousCharacter() {
                 );
 
                 const connectedEnd = Math.max(
-                    ...connected.map(glyph => glyph.x + glyph.width)
+                    ...connected.map(glyph => glyph.x + glyph.width
                 );
 
                 const tolerance = LETTER_GAP + 2;
@@ -1675,6 +1722,8 @@ window.addEventListener("resize", function () {
     if (!isReadOnly) {
         updateCanvasSize();
     }
+
+    updateMobileButtons();
 });
 
 // ==========================================
@@ -1730,6 +1779,7 @@ async function loadEverything() {
     setButtonState("seal", false);
 
     updateCanvasSize();
+    updateMobileButtons();
 
     console.log("Bared Heart loaded.");
 }
