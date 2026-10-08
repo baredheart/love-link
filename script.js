@@ -6,13 +6,11 @@
 const canvas = document.getElementById("canvas");
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-
 // ==========================================
 // DEVICE
 // ==========================================
 
 const isMobile = window.innerWidth <= 768;
-
 
 // ==========================================
 // SUPABASE
@@ -24,12 +22,10 @@ const SUPABASE_URL =
 const SUPABASE_KEY =
     "sb_publishable_KTmiZGedhB2yst5FvPhOJQ_E97k4Jno";
 
-const supabaseClient =
-    window.supabase.createClient(
-        SUPABASE_URL,
-        SUPABASE_KEY
-    );
-
+const supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+);
 
 // ==========================================
 // URLS
@@ -41,24 +37,22 @@ const SITE_URL =
 const FRAMER_URL =
     "https://baredheart.framer.website/";
 
-
 // ==========================================
 // PAGE SETTINGS
 // ==========================================
 
-const LEFT_MARGIN = 30;
-const RIGHT_MARGIN = 30;
-const TOP_MARGIN = 40;
+const LEFT_MARGIN = isMobile ? 20 : 30;
+const RIGHT_MARGIN = isMobile ? 20 : 30;
+const TOP_MARGIN = isMobile ? 30 : 40;
 
-const LETTER_HEIGHT = 80;
-const LINE_HEIGHT = 88;
+const LETTER_HEIGHT = isMobile ? 40 : 80;
+const LINE_HEIGHT = isMobile ? 48 : 88;
 
-const LETTER_GAP = 3;
-const SPACE_WIDTH = 35;
-
+const LETTER_GAP = isMobile ? 2 : 3;
+const SPACE_WIDTH = isMobile ? 18 : 35;
 
 // ==========================================
-// WIDTH / RHYTHM SETTINGS
+// RHYTHM SETTINGS
 // ==========================================
 
 const MIN_TIME = 50;
@@ -67,12 +61,11 @@ const MIN_STRETCH = 0.12;
 const MAX_TIME = 1500;
 const MAX_STRETCH = 10;
 
-
 // ==========================================
 // CURSOR SETTINGS
 // ==========================================
 
-const CURSOR_GAP = 12;
+const CURSOR_GAP = isMobile ? 6 : 12;
 const CURSOR_SCALE = 1;
 
 const BLINK_FAST = 320;
@@ -80,7 +73,6 @@ const BLINK_SLOW = 1100;
 
 const SLOWDOWN_START = 1200;
 const SLOWDOWN_END = 4500;
-
 
 // ==========================================
 // BUTTON SETTINGS
@@ -92,7 +84,6 @@ const BUTTON_BOTTOM = 30;
 
 const BUTTON_WIDTH = 115;
 const BUTTON_TRANSITION = 280;
-
 
 // ==========================================
 // STATE
@@ -110,6 +101,19 @@ let isReadOnly = false;
 let history = [];
 let strikeIndex = -1;
 
+let mobileInput = null;
+
+let interfaceButton = null;
+let backButton = null;
+
+let cursorGroup = null;
+let cursorAnimationFrame = null;
+
+let cursorPauseStart = performance.now();
+let lastBlinkTime = performance.now();
+let cursorVisible = true;
+
+let lastScrollLine = -1;
 
 // ==========================================
 // SVG FILES
@@ -199,7 +203,6 @@ const glyphFiles = {
     "}": "./glyphs/right-curly-brace.svg"
 };
 
-
 // ==========================================
 // SVG STORAGE
 // ==========================================
@@ -208,7 +211,6 @@ const glyphs = {};
 
 let cursorSource = null;
 let strikeSource = null;
-
 
 // ==========================================
 // LOAD SVG
@@ -221,7 +223,6 @@ async function loadSVG(file) {
         const response = await fetch(file);
 
         if (!response.ok) {
-
             console.error("Could not load:", file);
             return null;
         }
@@ -244,6 +245,22 @@ async function loadSVG(file) {
     }
 }
 
+// ==========================================
+// MOBILE VIEWPORT
+// ==========================================
+
+function getMobileViewportWidth() {
+
+    return document.documentElement.clientWidth ||
+        window.innerWidth;
+}
+
+function getWritingWidth() {
+
+    return isMobile
+        ? getMobileViewportWidth()
+        : window.innerWidth;
+}
 
 // ==========================================
 // MOBILE PAGE SETUP
@@ -253,24 +270,22 @@ function setupMobilePage() {
 
     if (!isMobile) return;
 
-    document.documentElement.style.overflowX = "auto";
+    document.documentElement.style.overflowX = "hidden";
     document.documentElement.style.overflowY = "auto";
 
-    document.body.style.overflowX = "auto";
+    document.body.style.overflowX = "hidden";
     document.body.style.overflowY = "auto";
 
-    document.body.style.touchAction = "pan-x pan-y";
+    document.body.style.width = "100%";
+    document.body.style.maxWidth = "100%";
 
-    canvas.style.maxWidth = "none";
-    canvas.style.touchAction = "pan-x pan-y";
+    canvas.style.maxWidth = "100%";
+    canvas.style.touchAction = "pan-y";
 }
-
 
 // ==========================================
 // MOBILE INPUT
 // ==========================================
-
-let mobileInput = null;
 
 function createMobileInput() {
 
@@ -286,26 +301,26 @@ function createMobileInput() {
     mobileInput.setAttribute("spellcheck", "false");
     mobileInput.setAttribute("inputmode", "text");
 
-    mobileInput.style.position = "fixed";
-    mobileInput.style.left = "0px";
-    mobileInput.style.bottom = "0px";
-    mobileInput.style.width = "1px";
-    mobileInput.style.height = "1px";
-    mobileInput.style.opacity = "0";
-    mobileInput.style.border = "0";
-    mobileInput.style.padding = "0";
-    mobileInput.style.margin = "0";
-    mobileInput.style.fontSize = "16px";
-    mobileInput.style.zIndex = "9998";
-    mobileInput.style.pointerEvents = "none";
+    Object.assign(mobileInput.style, {
+        position: "fixed",
+        left: "0px",
+        bottom: "0px",
+        width: "1px",
+        height: "1px",
+        opacity: "0",
+        border: "0",
+        padding: "0",
+        margin: "0",
+        fontSize: "16px",
+        zIndex: "9998",
+        pointerEvents: "none"
+    });
 
     document.body.appendChild(mobileInput);
-
 
     mobileInput.addEventListener("input", function () {
 
         if (isSealed || isReadOnly) {
-
             mobileInput.value = "";
             return;
         }
@@ -317,13 +332,11 @@ function createMobileInput() {
         Array.from(value).forEach(function (character) {
 
             if (character === "\n") {
-
                 handleReturn();
                 return;
             }
 
             if (character === " ") {
-
                 handleSpace();
                 return;
             }
@@ -334,7 +347,6 @@ function createMobileInput() {
         mobileInput.value = "";
     });
 
-
     mobileInput.addEventListener("keydown", function (event) {
 
         if (isSealed || isReadOnly) return;
@@ -342,11 +354,12 @@ function createMobileInput() {
         if (event.key === "Backspace") {
 
             event.preventDefault();
+
             strikePreviousCharacter();
+
             mobileInput.value = "";
         }
     });
-
 
     canvas.addEventListener("click", function () {
 
@@ -356,7 +369,6 @@ function createMobileInput() {
     });
 }
 
-
 function focusMobileInput() {
 
     if (!mobileInput || isSealed || isReadOnly) return;
@@ -365,17 +377,6 @@ function focusMobileInput() {
         preventScroll: true
     });
 }
-
-
-// ==========================================
-// WRITING WIDTH
-// ==========================================
-
-function getWritingWidth() {
-
-    return window.innerWidth;
-}
-
 
 // ==========================================
 // HEART ID
@@ -400,7 +401,6 @@ function generateHeartID() {
     return id;
 }
 
-
 function getHeartIDFromURL() {
 
     if (!window.location.hash) return null;
@@ -414,7 +414,6 @@ function getHeartIDFromURL() {
 
     return id;
 }
-
 
 // ==========================================
 // SAVE HEART
@@ -444,7 +443,6 @@ async function saveHeartToSupabase(letterData) {
     throw new Error("Could not create unique heart ID.");
 }
 
-
 // ==========================================
 // LOAD HEART
 // ==========================================
@@ -458,20 +456,17 @@ async function loadHeartFromSupabase(heartID) {
         .maybeSingle();
 
     if (error) {
-
         console.error("Could not load heart:", error);
         return;
     }
 
     if (!data || !data.letter_data) {
-
         console.error("Heart not found:", heartID);
         return;
     }
 
     loadSavedLetter(data.letter_data);
 }
-
 
 // ==========================================
 // TIMING → WIDTH
@@ -493,7 +488,6 @@ function getStretch(interval) {
     return MIN_STRETCH +
         amount * (MAX_STRETCH - MIN_STRETCH);
 }
-
 
 // ==========================================
 // PRESERVE STROKE WIDTH
@@ -524,13 +518,9 @@ function preserveStrokeWidth(element) {
     }
 }
 
-
 // ==========================================
 // BUTTONS
 // ==========================================
-
-let interfaceButton = null;
-let backButton = null;
 
 function createInterfaceButton() {
 
@@ -538,27 +528,28 @@ function createInterfaceButton() {
 
     interfaceButton.id = "heart-button";
 
-    interfaceButton.style.position = "fixed";
-    interfaceButton.style.right = BUTTON_RIGHT + "px";
-    interfaceButton.style.bottom = BUTTON_BOTTOM + "px";
-    interfaceButton.style.width = BUTTON_WIDTH + "px";
-    interfaceButton.style.height = "auto";
-    interfaceButton.style.zIndex = "9999";
-    interfaceButton.style.cursor = "pointer";
-    interfaceButton.style.opacity = "1";
-
-    interfaceButton.style.transition =
-        `opacity ${BUTTON_TRANSITION}ms ease-in-out`;
-
-    interfaceButton.style.userSelect = "none";
-    interfaceButton.style.webkitUserSelect = "none";
-    interfaceButton.style.webkitTouchCallout = "none";
+    Object.assign(interfaceButton.style, {
+        position: "fixed",
+        right: BUTTON_RIGHT + "px",
+        bottom: BUTTON_BOTTOM + "px",
+        width: BUTTON_WIDTH + "px",
+        height: "auto",
+        zIndex: "9999",
+        cursor: "pointer",
+        opacity: "1",
+        transition: `opacity ${BUTTON_TRANSITION}ms ease-in-out`,
+        userSelect: "none",
+        webkitUserSelect: "none",
+        webkitTouchCallout: "none"
+    });
 
     interfaceButton.draggable = false;
 
     interfaceButton.addEventListener("mouseenter", function () {
 
-        if (!isCollected) interfaceButton.style.opacity = "0.7";
+        if (!isCollected) {
+            interfaceButton.style.opacity = "0.7";
+        }
     });
 
     interfaceButton.addEventListener("mouseleave", function () {
@@ -571,7 +562,6 @@ function createInterfaceButton() {
     document.body.appendChild(interfaceButton);
 }
 
-
 function createBackButton() {
 
     backButton = document.createElement("img");
@@ -579,22 +569,21 @@ function createBackButton() {
     backButton.id = "back-button";
     backButton.src = "./glyphs/back-button.svg";
 
-    backButton.style.position = "fixed";
-    backButton.style.left = BUTTON_LEFT + "px";
-    backButton.style.bottom = BUTTON_BOTTOM + "px";
-    backButton.style.width = BUTTON_WIDTH + "px";
-    backButton.style.height = "auto";
-    backButton.style.zIndex = "9999";
-    backButton.style.cursor = "pointer";
-    backButton.style.opacity = "0";
-    backButton.style.visibility = "hidden";
-    backButton.style.pointerEvents = "none";
-
-    backButton.style.transition =
-        `opacity ${BUTTON_TRANSITION}ms ease-in-out`;
-
-    backButton.style.userSelect = "none";
-    backButton.style.webkitUserSelect = "none";
+    Object.assign(backButton.style, {
+        position: "fixed",
+        left: BUTTON_LEFT + "px",
+        bottom: BUTTON_BOTTOM + "px",
+        width: BUTTON_WIDTH + "px",
+        height: "auto",
+        zIndex: "9999",
+        cursor: "pointer",
+        opacity: "0",
+        visibility: "hidden",
+        pointerEvents: "none",
+        transition: `opacity ${BUTTON_TRANSITION}ms ease-in-out`,
+        userSelect: "none",
+        webkitUserSelect: "none"
+    });
 
     backButton.draggable = false;
 
@@ -616,7 +605,6 @@ function createBackButton() {
     document.body.appendChild(backButton);
 }
 
-
 function showBackButton() {
 
     if (!backButton) return;
@@ -634,7 +622,6 @@ function showBackButton() {
     });
 }
 
-
 // ==========================================
 // BUTTON STATE
 // ==========================================
@@ -646,19 +633,16 @@ function setButtonState(state, animate = true) {
     let newSource = "";
 
     if (state === "seal") {
-
         newSource = "./glyphs/seal-button.svg";
         interfaceButton.style.cursor = "pointer";
     }
 
     if (state === "collect") {
-
         newSource = "./glyphs/collect-button.svg";
         interfaceButton.style.cursor = "pointer";
     }
 
     if (state === "collected") {
-
         newSource = "./glyphs/collected-button.svg";
         interfaceButton.style.cursor = "default";
     }
@@ -688,16 +672,16 @@ function setButtonState(state, animate = true) {
             interfaceButton.style.opacity = "1";
 
             if (state !== "collected") {
-
                 interfaceButton.style.pointerEvents = "auto";
             }
         });
 
-        if (state === "collected") showBackButton();
+        if (state === "collected") {
+            showBackButton();
+        }
 
     }, BUTTON_TRANSITION);
 }
-
 
 // ==========================================
 // BUTTON CLICK
@@ -708,14 +692,12 @@ async function handleButtonClick() {
     if (isReadOnly || isCollected) return;
 
     if (!isSealed) {
-
         sealLetter();
         return;
     }
 
     await collectLetter();
 }
-
 
 // ==========================================
 // SEAL
@@ -725,9 +707,13 @@ function sealLetter() {
 
     isSealed = true;
 
-    if (mobileInput) mobileInput.blur();
+    if (mobileInput) {
+        mobileInput.blur();
+    }
 
-    if (cursorGroup) cursorGroup.style.display = "none";
+    if (cursorGroup) {
+        cursorGroup.style.display = "none";
+    }
 
     if (cursorAnimationFrame) {
 
@@ -738,7 +724,6 @@ function sealLetter() {
     setButtonState("collect");
 }
 
-
 // ==========================================
 // COLLECT
 // ==========================================
@@ -746,7 +731,6 @@ function sealLetter() {
 async function collectLetter() {
 
     if (interfaceButton) {
-
         interfaceButton.style.pointerEvents = "none";
     }
 
@@ -776,12 +760,10 @@ async function collectLetter() {
         console.error("Heart could not be collected:", error);
 
         if (interfaceButton) {
-
             interfaceButton.style.pointerEvents = "auto";
         }
     }
 }
-
 
 // ==========================================
 // FALLBACK COPY
@@ -812,7 +794,6 @@ function fallbackCopy(text) {
     textArea.remove();
 }
 
-
 // ==========================================
 // CREATE LETTER DATA
 // ==========================================
@@ -833,6 +814,8 @@ function createLetterData() {
 
                 width: Math.round(item.width * 100) / 100,
 
+                height: item.height,
+
                 stretch: Math.round(item.stretch * 10000) / 10000,
 
                 struck: item.struck
@@ -849,18 +832,9 @@ function createLetterData() {
     });
 }
 
-
 // ==========================================
 // CURSOR
 // ==========================================
-
-let cursorGroup = null;
-
-let cursorPauseStart = performance.now();
-let lastBlinkTime = performance.now();
-
-let cursorVisible = true;
-let cursorAnimationFrame = null;
 
 function createCursor() {
 
@@ -887,13 +861,11 @@ function createCursor() {
     animateCursor();
 }
 
-
 function animateCursor() {
 
     if (!cursorGroup || !cursorSource || isSealed || isReadOnly) return;
 
     const now = performance.now();
-
     const pausedFor = now - cursorPauseStart;
 
     let blinkSpeed = BLINK_FAST;
@@ -924,7 +896,6 @@ function animateCursor() {
     const viewBox = cursorSource.viewBox.baseVal;
 
     const baseScale = LETTER_HEIGHT / viewBox.height;
-
     const finalScale = baseScale * CURSOR_SCALE;
 
     const centreX = viewBox.x + viewBox.width / 2;
@@ -947,7 +918,6 @@ function animateCursor() {
     cursorAnimationFrame = requestAnimationFrame(animateCursor);
 }
 
-
 function resetCursor() {
 
     if (isSealed || isReadOnly) return;
@@ -957,15 +927,14 @@ function resetCursor() {
 
     cursorVisible = true;
 
-    if (cursorGroup) cursorGroup.style.opacity = "1";
+    if (cursorGroup) {
+        cursorGroup.style.opacity = "1";
+    }
 }
-
 
 // ==========================================
 // CURSOR FOLLOW
 // ==========================================
-
-let lastScrollLine = -1;
 
 function followDesktopCursor() {
 
@@ -998,67 +967,46 @@ function followDesktopCursor() {
     }
 }
 
-
 function followMobileCursor() {
 
     if (!isMobile || isSealed || isReadOnly) return;
 
-    const screenX = cursorX - window.scrollX;
     const screenY = cursorY - window.scrollY;
-
-    const safeRight = window.innerWidth * 0.72;
-    const safeLeft = window.innerWidth * 0.15;
 
     const safeBottom = window.innerHeight * 0.58;
     const safeTop = window.innerHeight * 0.15;
 
-    let targetX = window.scrollX;
     let targetY = window.scrollY;
-
-    if (screenX > safeRight) {
-
-        targetX = cursorX - window.innerWidth * 0.55;
-    }
-
-    if (screenX < safeLeft) {
-
-        targetX = cursorX - window.innerWidth * 0.15;
-    }
 
     if (screenY > safeBottom) {
 
-        targetY = cursorY - window.innerHeight * 0.42;
+        targetY =
+            cursorY - window.innerHeight * 0.42;
     }
 
     if (screenY < safeTop) {
 
-        targetY = cursorY - window.innerHeight * 0.15;
+        targetY =
+            cursorY - window.innerHeight * 0.15;
     }
 
-    targetX = Math.max(0, targetX);
     targetY = Math.max(0, targetY);
 
     window.scrollTo({
-
-        left: targetX,
+        left: 0,
         top: targetY,
         behavior: "smooth"
     });
 }
 
-
 function followCursor() {
 
     if (isMobile) {
-
         followMobileCursor();
-
     } else {
-
         followDesktopCursor();
     }
 }
-
 
 // ==========================================
 // CANVAS SIZE
@@ -1082,23 +1030,27 @@ function updateCanvasSize() {
         return;
     }
 
-    // Mobile canvas stays at phone width.
+    const mobileWidth = getMobileViewportWidth();
 
-    const requiredWidth = window.innerWidth;
-
-    canvas.setAttribute("width", requiredWidth);
+    canvas.setAttribute("width", mobileWidth);
     canvas.setAttribute("height", requiredHeight);
 
-    canvas.style.width = requiredWidth + "px";
+    canvas.style.width = mobileWidth + "px";
     canvas.style.height = requiredHeight + "px";
+    canvas.style.maxWidth = "100%";
 }
-
 
 // ==========================================
 // CREATE GLYPH
 // ==========================================
 
-function createGlyphElement(character, x, y, stretch) {
+function createGlyphElement(
+    character,
+    x,
+    y,
+    stretch,
+    glyphHeight = LETTER_HEIGHT
+) {
 
     const sourceSVG = glyphs[character];
 
@@ -1109,8 +1061,7 @@ function createGlyphElement(character, x, y, stretch) {
     const originalWidth = viewBox.width;
     const originalHeight = viewBox.height;
 
-    const scaleY = LETTER_HEIGHT / originalHeight;
-
+    const scaleY = glyphHeight / originalHeight;
     const scaleX = scaleY * stretch;
 
     const newWidth =
@@ -1144,7 +1095,6 @@ function createGlyphElement(character, x, y, stretch) {
     };
 }
 
-
 // ==========================================
 // DRAW GLYPH
 // ==========================================
@@ -1157,27 +1107,24 @@ function drawGlyph(character, interval) {
 
     const viewBox = sourceSVG.viewBox.baseVal;
 
-    const originalWidth = viewBox.width;
-    const originalHeight = viewBox.height;
-
     let stretch = getStretch(interval);
 
-    const scaleY = LETTER_HEIGHT / originalHeight;
+    const scaleY = LETTER_HEIGHT / viewBox.height;
+    const baseWidth = viewBox.width * scaleY;
 
-    const baseWidth = originalWidth * scaleY;
-
-
-    // ======================================
-    // MOBILE WIDTH LIMIT
-    // ======================================
+    // Mobile glyphs are smaller and their
+    // maximum width fits the phone.
 
     if (isMobile) {
 
-        const maximumWidth =
-            window.innerWidth -
+        const maximumWidth = Math.max(
+            1,
+            getWritingWidth() -
             LEFT_MARGIN -
             RIGHT_MARGIN -
-            CURSOR_GAP;
+            CURSOR_GAP -
+            LETTER_GAP
+        );
 
         stretch = Math.min(
             stretch,
@@ -1185,12 +1132,10 @@ function drawGlyph(character, interval) {
         );
     }
 
-
     const newWidth = baseWidth * stretch;
 
     const availableWidth =
         getWritingWidth() - RIGHT_MARGIN;
-
 
     if (
         cursorX !== LEFT_MARGIN &&
@@ -1201,7 +1146,6 @@ function drawGlyph(character, interval) {
         cursorY += LINE_HEIGHT;
     }
 
-
     const startX = cursorX;
     const startY = cursorY;
 
@@ -1209,12 +1153,15 @@ function drawGlyph(character, interval) {
         character,
         startX,
         startY,
-        stretch
+        stretch,
+        LETTER_HEIGHT
     );
 
     if (!result) return;
 
-    if (cursorGroup) canvas.appendChild(cursorGroup);
+    if (cursorGroup) {
+        canvas.appendChild(cursorGroup);
+    }
 
     history.push({
 
@@ -1246,7 +1193,6 @@ function drawGlyph(character, interval) {
     requestAnimationFrame(followCursor);
 }
 
-
 // ==========================================
 // RETURN
 // ==========================================
@@ -1256,7 +1202,6 @@ function handleReturn() {
     if (isSealed || isReadOnly) return;
 
     history.push({
-
         type: "return",
         x: cursorX,
         y: cursorY
@@ -1274,7 +1219,6 @@ function handleReturn() {
     requestAnimationFrame(followCursor);
 }
 
-
 // ==========================================
 // SPACE
 // ==========================================
@@ -1284,7 +1228,6 @@ function handleSpace() {
     if (isSealed || isReadOnly) return;
 
     history.push({
-
         type: "space",
         x: cursorX,
         y: cursorY
@@ -1306,7 +1249,6 @@ function handleSpace() {
     requestAnimationFrame(followCursor);
 }
 
-
 // ==========================================
 // PROCESS CHARACTER
 // ==========================================
@@ -1316,7 +1258,6 @@ function processTypedCharacter(character) {
     if (isSealed || isReadOnly) return;
 
     if (/^[a-zA-Z]$/.test(character)) {
-
         character = character.toUpperCase();
     }
 
@@ -1331,7 +1272,6 @@ function processTypedCharacter(character) {
     let interval = 200;
 
     if (lastKeyTime !== null) {
-
         interval = now - lastKeyTime;
     }
 
@@ -1339,7 +1279,6 @@ function processTypedCharacter(character) {
 
     drawGlyph(character, interval);
 }
-
 
 // ==========================================
 // STRIKE HELPERS
@@ -1364,7 +1303,6 @@ function removeStrikeGroups(items) {
     });
 }
 
-
 function drawContinuousStrike(items) {
 
     if (!strikeSource || items.length === 0) return;
@@ -1385,8 +1323,10 @@ function drawContinuousStrike(items) {
 
     const strikeViewBox = strikeSource.viewBox.baseVal;
 
+    const glyphHeight = items[0].height || 80;
+
     const scaleX = totalWidth / strikeViewBox.width;
-    const scaleY = LETTER_HEIGHT / strikeViewBox.height;
+    const scaleY = glyphHeight / strikeViewBox.height;
 
     const strikeGroup = document.createElementNS(SVG_NS, "g");
 
@@ -1395,6 +1335,7 @@ function drawContinuousStrike(items) {
         const copy = document.importNode(child, true);
 
         preserveStrokeWidth(copy);
+
         strikeGroup.appendChild(copy);
     });
 
@@ -1410,16 +1351,13 @@ function drawContinuousStrike(items) {
     canvas.appendChild(strikeGroup);
 
     items.forEach(function (item) {
-
         item.strikeElement = strikeGroup;
     });
 
     if (cursorGroup && !isSealed) {
-
         canvas.appendChild(cursorGroup);
     }
 }
-
 
 function redrawAllStrikes() {
 
@@ -1433,7 +1371,6 @@ function redrawAllStrikes() {
     struckItems.forEach(function (item) {
 
         if (!lines.has(item.y)) {
-
             lines.set(item.y, []);
         }
 
@@ -1449,7 +1386,6 @@ function redrawAllStrikes() {
         lineItems.forEach(function (item) {
 
             if (group.length === 0) {
-
                 group.push(item);
                 return;
             }
@@ -1471,12 +1407,10 @@ function redrawAllStrikes() {
         });
 
         if (group.length > 0) {
-
             drawContinuousStrike(group);
         }
     });
 }
-
 
 // ==========================================
 // BACKSPACE
@@ -1555,7 +1489,6 @@ function strikePreviousCharacter() {
     requestAnimationFrame(followCursor);
 }
 
-
 // ==========================================
 // LOAD RECEIVED LETTER
 // ==========================================
@@ -1571,11 +1504,18 @@ function loadSavedLetter(data) {
 
         if (item.type === "glyph") {
 
+            // Older letters did not save height.
+            // They were originally created at 80px.
+
+            const savedHeight =
+                item.height || 80;
+
             const result = createGlyphElement(
                 item.character,
                 item.x,
                 item.y,
-                item.stretch
+                item.stretch,
+                savedHeight
             );
 
             if (!result) return;
@@ -1592,7 +1532,7 @@ function loadSavedLetter(data) {
                 y: item.y,
 
                 width: item.width,
-                height: LETTER_HEIGHT,
+                height: savedHeight,
 
                 stretch: item.stretch,
 
@@ -1603,12 +1543,12 @@ function loadSavedLetter(data) {
 
             maximumX = Math.max(
                 maximumX,
-                item.x + item.width + RIGHT_MARGIN + 100
+                item.x + item.width + 100
             );
 
             maximumY = Math.max(
                 maximumY,
-                item.y + LETTER_HEIGHT + 150
+                item.y + savedHeight + 150
             );
 
         } else {
@@ -1620,21 +1560,22 @@ function loadSavedLetter(data) {
                 y: item.y
             });
 
-            maximumX = Math.max(maximumX, item.x + 100);
+            maximumX = Math.max(
+                maximumX,
+                item.x + 100
+            );
 
             maximumY = Math.max(
                 maximumY,
-                item.y + LINE_HEIGHT + 150
+                item.y + 150
             );
         }
     });
 
     redrawAllStrikes();
 
-
-    // ======================================
-    // PRESERVE ORIGINAL COMPOSITION
-    // ======================================
+    // Preserve the sender's original
+    // positions, widths and glyph heights.
 
     canvas.setAttribute("width", maximumX);
     canvas.setAttribute("height", maximumY);
@@ -1650,19 +1591,23 @@ function loadSavedLetter(data) {
     document.body.style.overflowY = "auto";
 
     document.body.style.width = "max-content";
+    document.body.style.maxWidth = "none";
     document.body.style.minWidth = "100%";
-    document.body.style.touchAction = "pan-x pan-y";
 
+    document.body.style.touchAction = "pan-x pan-y";
     canvas.style.touchAction = "pan-x pan-y";
 
+    if (interfaceButton) {
+        interfaceButton.style.display = "none";
+    }
 
-    // ======================================
-    // HIDE WRITER CONTROLS
-    // ======================================
+    if (backButton) {
+        backButton.style.display = "none";
+    }
 
-    if (interfaceButton) interfaceButton.style.display = "none";
-    if (backButton) backButton.style.display = "none";
-    if (cursorGroup) cursorGroup.style.display = "none";
+    if (cursorGroup) {
+        cursorGroup.style.display = "none";
+    }
 
     if (mobileInput) {
 
@@ -1670,7 +1615,6 @@ function loadSavedLetter(data) {
         mobileInput.style.display = "none";
     }
 }
-
 
 // ==========================================
 // DESKTOP KEYBOARD
@@ -1722,7 +1666,6 @@ window.addEventListener("keydown", function (event) {
     processTypedCharacter(event.key);
 });
 
-
 // ==========================================
 // RESIZE
 // ==========================================
@@ -1730,11 +1673,9 @@ window.addEventListener("keydown", function (event) {
 window.addEventListener("resize", function () {
 
     if (!isReadOnly) {
-
         updateCanvasSize();
     }
 });
-
 
 // ==========================================
 // LOAD EVERYTHING
@@ -1745,7 +1686,6 @@ async function loadEverything() {
     setupMobilePage();
 
     if (isMobile) {
-
         createMobileInput();
     }
 
@@ -1760,7 +1700,9 @@ async function loadEverything() {
         })
     );
 
-    cursorSource = await loadSVG("./glyphs/cursor.svg");
+    cursorSource = await loadSVG(
+        "./glyphs/cursor.svg"
+    );
 
     strikeSource = await loadSVG(
         "./glyphs/strike-through.svg"
@@ -1782,7 +1724,6 @@ async function loadEverything() {
     }
 
     if (cursorSource) {
-
         createCursor();
     }
 
@@ -1792,7 +1733,6 @@ async function loadEverything() {
 
     console.log("Bared Heart loaded.");
 }
-
 
 // ==========================================
 // START
