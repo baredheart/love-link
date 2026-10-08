@@ -61,7 +61,10 @@ const SPACE_WIDTH = 35;
 // MOBILE SETTINGS
 // ==========================================
 
-const MOBILE_CANVAS_WIDTH = 900;
+// Mobile writing now uses the phone's width.
+// No fixed 900px writing area.
+
+const MOBILE_CANVAS_WIDTH = window.innerWidth;
 
 
 // ==========================================
@@ -507,15 +510,10 @@ function focusMobileInput() {
 // WRITING WIDTH
 // ==========================================
 
+// Both desktop and mobile wrap according
+// to their own viewport width.
+
 function getWritingWidth() {
-
-    if (isMobile) {
-
-        return Math.max(
-            MOBILE_CANVAS_WIDTH,
-            window.innerWidth
-        );
-    }
 
     return window.innerWidth;
 }
@@ -882,7 +880,8 @@ function createBackButton() {
     backButton.style.webkitUserSelect =
         "none";
 
-    backButton.draggable = false;
+    backButton.draggable =
+        false;
 
 
     backButton.addEventListener(
@@ -1699,7 +1698,7 @@ function updateCanvasSize() {
 
 
     // --------------------------------------
-    // DESKTOP WRITER
+    // DESKTOP WRITER — UNCHANGED
     // --------------------------------------
 
     if (!isMobile) {
@@ -1725,15 +1724,15 @@ function updateCanvasSize() {
 
 
     // --------------------------------------
-    // MOBILE WRITER
+    // MOBILE WRITER — PHONE WIDTH
     // --------------------------------------
 
-    let requiredWidth =
-        Math.max(
-            MOBILE_CANVAS_WIDTH,
-            window.innerWidth
-        );
+    let requiredWidth = window.innerWidth;
 
+
+    // Allow unusually stretched glyphs
+    // to extend beyond the screen without
+    // changing their individual widths.
 
     history.forEach(
         function (item) {
@@ -2153,8 +2152,7 @@ function processTypedCharacter(
     }
 
 
-    // IMPORTANT:
-    // Mobile and desktop both use this same
+    // Mobile and desktop use the same
     // timing measurement.
 
     const now =
@@ -2733,8 +2731,8 @@ function loadSavedLetter(data) {
 
 
     // ======================================
-    // PRESERVE THE ORIGINAL LETTER SIZE
-    // ON EVERY DEVICE
+    // PRESERVE ORIGINAL COMPOSITION
+    // ON EVERY RECIPIENT DEVICE
     // ======================================
 
     canvas.setAttribute(
@@ -2757,9 +2755,8 @@ function loadSavedLetter(data) {
         "none";
 
 
-    // ======================================
-    // ALLOW FULL LETTER TO BE EXPLORED
-    // ======================================
+    // Allow recipients to scroll across
+    // the sender's original composition.
 
     document.documentElement.style.overflowX =
         "auto";
