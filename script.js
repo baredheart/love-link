@@ -11,9 +11,7 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 // DEVICE
 // ==========================================
 
-const isMobile =
-    window.matchMedia("(pointer: coarse)").matches ||
-    "ontouchstart" in window;
+const isMobile = window.innerWidth <= 768;
 
 
 // ==========================================
@@ -63,15 +61,11 @@ const SPACE_WIDTH = 35;
 // MOBILE SETTINGS
 // ==========================================
 
-// Only used on touch/mobile devices.
-// Desktop still uses the browser width exactly
-// as it did previously.
-
 const MOBILE_CANVAS_WIDTH = 900;
 
 
 // ==========================================
-// WIDTH BEHAVIOUR
+// WIDTH / RHYTHM SETTINGS
 // ==========================================
 
 const MIN_TIME = 50;
@@ -82,7 +76,7 @@ const MAX_STRETCH = 10;
 
 
 // ==========================================
-// CURSOR
+// CURSOR SETTINGS
 // ==========================================
 
 const CURSOR_GAP = 12;
@@ -96,7 +90,7 @@ const SLOWDOWN_END = 4500;
 
 
 // ==========================================
-// BUTTONS
+// BUTTON SETTINGS
 // ==========================================
 
 const BUTTON_RIGHT = 30;
@@ -229,112 +223,45 @@ let strikeSource = null;
 
 async function loadSVG(file) {
 
-    const response = await fetch(file);
+    try {
 
-    if (!response.ok) {
+        const response = await fetch(file);
+
+        if (!response.ok) {
+
+            console.error(
+                "Could not load:",
+                file
+            );
+
+            return null;
+        }
+
+        const svgText =
+            await response.text();
+
+        const parser =
+            new DOMParser();
+
+        const svgDocument =
+            parser.parseFromString(
+                svgText,
+                "image/svg+xml"
+            );
+
+        return svgDocument.documentElement;
+
+    } catch (error) {
 
         console.error(
-            "Could not load:",
-            file
+            "SVG loading error:",
+            file,
+            error
         );
 
         return null;
     }
-
-    const svgText =
-        await response.text();
-
-    const parser =
-        new DOMParser();
-
-    const svgDocument =
-        parser.parseFromString(
-            svgText,
-            "image/svg+xml"
-        );
-
-    return svgDocument.documentElement;
 }
-
-
-// ==========================================
-// INITIALISE
-// ==========================================
-
-async function loadEverything() {
-
-    // Only alter page scrolling on mobile.
-    if (isMobile) {
-
-        setupMobilePage();
-        createMobileInput();
-    }
-
-    const characters =
-        Object.keys(glyphFiles);
-
-    await Promise.all(
-
-        characters.map(
-
-            async function (character) {
-
-                glyphs[character] =
-                    await loadSVG(
-                        glyphFiles[character]
-                    );
-            }
-
-        )
-    );
-
-    cursorSource =
-        await loadSVG(
-            "./glyphs/cursor.svg"
-        );
-
-    strikeSource =
-        await loadSVG(
-            "./glyphs/strike-through.svg"
-        );
-
-    createInterfaceButton();
-    createBackButton();
-
-    const heartID =
-        getHeartIDFromURL();
-
-    if (heartID) {
-
-        isReadOnly = true;
-        isSealed = true;
-
-        await loadHeartFromSupabase(
-            heartID
-        );
-
-        return;
-    }
-
-    if (cursorSource) {
-
-        createCursor();
-    }
-
-    setButtonState(
-        "seal",
-        false
-    );
-
-    updateCanvasSize();
-
-    console.log(
-        "Bared Heart loaded."
-    );
-}
-
-
-loadEverything();
 
 
 // ==========================================
@@ -342,6 +269,10 @@ loadEverything();
 // ==========================================
 
 function setupMobilePage() {
+
+    if (!isMobile) {
+        return;
+    }
 
     document.documentElement.style.overflowX =
         "auto";
@@ -375,10 +306,15 @@ let mobileInput = null;
 
 function createMobileInput() {
 
+    if (!isMobile) {
+        return;
+    }
+
     mobileInput =
-        document.createElement(
-            "textarea"
-        );
+        document.createElement("textarea");
+
+    mobileInput.id =
+        "mobile-input";
 
     mobileInput.setAttribute(
         "autocomplete",
@@ -405,17 +341,14 @@ function createMobileInput() {
         "text"
     );
 
-
-    // Invisible, but still focusable by iOS.
-
     mobileInput.style.position =
         "fixed";
 
     mobileInput.style.left =
-        "0";
+        "0px";
 
     mobileInput.style.bottom =
-        "0";
+        "0px";
 
     mobileInput.style.width =
         "1px";
@@ -438,25 +371,23 @@ function createMobileInput() {
     mobileInput.style.fontSize =
         "16px";
 
+    mobileInput.style.zIndex =
+        "9998";
+
     mobileInput.style.pointerEvents =
         "none";
-
-    mobileInput.style.zIndex =
-        "-1";
 
     document.body.appendChild(
         mobileInput
     );
 
 
-    // ======================================
-    // MOBILE CHARACTER INPUT
-    // ======================================
+    // --------------------------------------
+    // MOBILE INPUT
+    // --------------------------------------
 
     mobileInput.addEventListener(
-
         "input",
-
         function () {
 
             if (
@@ -475,24 +406,19 @@ function createMobileInput() {
                 return;
             }
 
-            const inputCharacters =
+            const characters =
                 Array.from(value);
 
-            inputCharacters.forEach(
-
+            characters.forEach(
                 function (character) {
 
-                    if (
-                        character === "\n"
-                    ) {
+                    if (character === "\n") {
 
                         handleReturn();
                         return;
                     }
 
-                    if (
-                        character === " "
-                    ) {
+                    if (character === " ") {
 
                         handleSpace();
                         return;
@@ -509,28 +435,22 @@ function createMobileInput() {
     );
 
 
-    // ======================================
+    // --------------------------------------
     // MOBILE BACKSPACE
-    // ======================================
+    // --------------------------------------
 
     mobileInput.addEventListener(
-
         "keydown",
-
         function (event) {
 
             if (
                 isSealed ||
                 isReadOnly
             ) {
-
                 return;
             }
 
-            if (
-                event.key ===
-                "Backspace"
-            ) {
+            if (event.key === "Backspace") {
 
                 event.preventDefault();
 
@@ -542,21 +462,18 @@ function createMobileInput() {
     );
 
 
-    // ======================================
-    // TAP PAGE → KEYBOARD
-    // ======================================
+    // --------------------------------------
+    // TAP CANVAS → OPEN KEYBOARD
+    // --------------------------------------
 
     canvas.addEventListener(
-
         "click",
-
         function () {
 
             if (
                 isSealed ||
                 isReadOnly
             ) {
-
                 return;
             }
 
@@ -567,7 +484,7 @@ function createMobileInput() {
 
 
 // ==========================================
-// FOCUS MOBILE INPUT
+// FOCUS MOBILE KEYBOARD
 // ==========================================
 
 function focusMobileInput() {
@@ -577,7 +494,6 @@ function focusMobileInput() {
         isSealed ||
         isReadOnly
     ) {
-
         return;
     }
 
@@ -601,9 +517,6 @@ function getWritingWidth() {
         );
     }
 
-    // IMPORTANT:
-    // Desktop behaves exactly as before.
-
     return window.innerWidth;
 }
 
@@ -619,11 +532,7 @@ function generateHeartID() {
 
     let id = "";
 
-    for (
-        let i = 0;
-        i < 5;
-        i++
-    ) {
+    for (let i = 0; i < 5; i++) {
 
         const randomIndex =
             Math.floor(
@@ -642,7 +551,6 @@ function generateHeartID() {
 function getHeartIDFromURL() {
 
     if (!window.location.hash) {
-
         return null;
     }
 
@@ -655,7 +563,6 @@ function getHeartIDFromURL() {
     if (
         !/^[A-Z2-9]{5}$/.test(id)
     ) {
-
         return null;
     }
 
@@ -664,7 +571,7 @@ function getHeartIDFromURL() {
 
 
 // ==========================================
-// SUPABASE SAVE
+// SAVE HEART
 // ==========================================
 
 async function saveHeartToSupabase(
@@ -684,12 +591,8 @@ async function saveHeartToSupabase(
             await supabaseClient
                 .from("hearts")
                 .insert({
-
-                    id:
-                        heartID,
-
-                    letter_data:
-                        letterData
+                    id: heartID,
+                    letter_data: letterData
                 });
 
         if (!error) {
@@ -697,10 +600,7 @@ async function saveHeartToSupabase(
             return heartID;
         }
 
-        if (
-            error.code ===
-            "23505"
-        ) {
+        if (error.code === "23505") {
 
             continue;
         }
@@ -720,7 +620,7 @@ async function saveHeartToSupabase(
 
 
 // ==========================================
-// SUPABASE LOAD
+// LOAD HEART
 // ==========================================
 
 async function loadHeartFromSupabase(
@@ -731,10 +631,7 @@ async function loadHeartFromSupabase(
         await supabaseClient
             .from("hearts")
             .select("letter_data")
-            .eq(
-                "id",
-                heartID
-            )
+            .eq("id", heartID)
             .maybeSingle();
 
     if (error) {
@@ -785,8 +682,7 @@ function getStretch(interval) {
         (
             time -
             MIN_TIME
-        )
-        /
+        ) /
         (
             MAX_TIME -
             MIN_TIME
@@ -810,7 +706,7 @@ function getStretch(interval) {
 
 
 // ==========================================
-// PRESERVE STROKE
+// PRESERVE STROKE WIDTH
 // ==========================================
 
 function preserveStrokeWidth(element) {
@@ -834,7 +730,6 @@ function preserveStrokeWidth(element) {
         element
             .querySelectorAll(selectors)
             .forEach(
-
                 function (shape) {
 
                     shape.setAttribute(
@@ -842,25 +737,23 @@ function preserveStrokeWidth(element) {
                         "non-scaling-stroke"
                     );
                 }
-
             );
     }
 }
 
 
 // ==========================================
-// MAIN BUTTON
+// BUTTONS
 // ==========================================
 
 let interfaceButton = null;
+let backButton = null;
 
 
 function createInterfaceButton() {
 
     interfaceButton =
-        document.createElement(
-            "img"
-        );
+        document.createElement("img");
 
     interfaceButton.id =
         "heart-button";
@@ -901,14 +794,11 @@ function createInterfaceButton() {
     interfaceButton.style.webkitTouchCallout =
         "none";
 
-    interfaceButton.draggable =
-        false;
+    interfaceButton.draggable = false;
 
 
     interfaceButton.addEventListener(
-
         "mouseenter",
-
         function () {
 
             if (!isCollected) {
@@ -921,9 +811,7 @@ function createInterfaceButton() {
 
 
     interfaceButton.addEventListener(
-
         "mouseleave",
-
         function () {
 
             interfaceButton.style.opacity =
@@ -933,9 +821,7 @@ function createInterfaceButton() {
 
 
     interfaceButton.addEventListener(
-
         "click",
-
         handleButtonClick
     );
 
@@ -946,19 +832,10 @@ function createInterfaceButton() {
 }
 
 
-// ==========================================
-// BACK BUTTON
-// ==========================================
-
-let backButton = null;
-
-
 function createBackButton() {
 
     backButton =
-        document.createElement(
-            "img"
-        );
+        document.createElement("img");
 
     backButton.id =
         "back-button";
@@ -1005,14 +882,11 @@ function createBackButton() {
     backButton.style.webkitUserSelect =
         "none";
 
-    backButton.draggable =
-        false;
+    backButton.draggable = false;
 
 
     backButton.addEventListener(
-
         "mouseenter",
-
         function () {
 
             backButton.style.opacity =
@@ -1022,9 +896,7 @@ function createBackButton() {
 
 
     backButton.addEventListener(
-
         "mouseleave",
-
         function () {
 
             backButton.style.opacity =
@@ -1034,9 +906,7 @@ function createBackButton() {
 
 
     backButton.addEventListener(
-
         "click",
-
         function () {
 
             window.location.href =
@@ -1050,10 +920,6 @@ function createBackButton() {
     );
 }
 
-
-// ==========================================
-// SHOW BACK
-// ==========================================
 
 function showBackButton() {
 
@@ -1071,11 +937,9 @@ function showBackButton() {
         "0";
 
     requestAnimationFrame(
-
         function () {
 
             requestAnimationFrame(
-
                 function () {
 
                     backButton.style.opacity =
@@ -1149,21 +1013,21 @@ function setButtonState(
         return;
     }
 
+
     interfaceButton.style.pointerEvents =
         "none";
 
     interfaceButton.style.opacity =
         "0";
 
-    setTimeout(
 
+    setTimeout(
         function () {
 
             interfaceButton.src =
                 newSource;
 
             requestAnimationFrame(
-
                 function () {
 
                     interfaceButton.style.opacity =
@@ -1189,7 +1053,6 @@ function setButtonState(
             }
 
         },
-
         BUTTON_TRANSITION
     );
 }
@@ -1205,7 +1068,6 @@ async function handleButtonClick() {
         isReadOnly ||
         isCollected
     ) {
-
         return;
     }
 
@@ -1247,9 +1109,7 @@ function sealLetter() {
         cursorAnimationFrame = null;
     }
 
-    setButtonState(
-        "collect"
-    );
+    setButtonState("collect");
 }
 
 
@@ -1360,13 +1220,12 @@ function fallbackCopy(text) {
 
 
 // ==========================================
-// SAVE LETTER DATA
+// CREATE LETTER DATA
 // ==========================================
 
 function createLetterData() {
 
     return history.map(
-
         function (item) {
 
             if (
@@ -1376,8 +1235,7 @@ function createLetterData() {
 
                 return {
 
-                    type:
-                        "glyph",
+                    type: "glyph",
 
                     character:
                         item.character,
@@ -1428,7 +1286,7 @@ function createLetterData() {
 
 
 // ==========================================
-// CURSOR STATE
+// CURSOR
 // ==========================================
 
 let cursorGroup = null;
@@ -1444,10 +1302,6 @@ let cursorVisible = true;
 let cursorAnimationFrame = null;
 
 
-// ==========================================
-// CREATE CURSOR
-// ==========================================
-
 function createCursor() {
 
     if (
@@ -1455,7 +1309,6 @@ function createCursor() {
         isSealed ||
         isReadOnly
     ) {
-
         return;
     }
 
@@ -1468,7 +1321,6 @@ function createCursor() {
     Array.from(
         cursorSource.children
     ).forEach(
-
         function (child) {
 
             const copy =
@@ -1477,9 +1329,7 @@ function createCursor() {
                     true
                 );
 
-            preserveStrokeWidth(
-                copy
-            );
+            preserveStrokeWidth(copy);
 
             cursorGroup.appendChild(
                 copy
@@ -1503,10 +1353,6 @@ function createCursor() {
 }
 
 
-// ==========================================
-// ANIMATE CURSOR
-// ==========================================
-
 function animateCursor() {
 
     if (
@@ -1515,7 +1361,6 @@ function animateCursor() {
         isSealed ||
         isReadOnly
     ) {
-
         return;
     }
 
@@ -1529,6 +1374,7 @@ function animateCursor() {
     let blinkSpeed =
         BLINK_FAST;
 
+
     if (
         pausedFor >
         SLOWDOWN_START
@@ -1538,8 +1384,7 @@ function animateCursor() {
             (
                 pausedFor -
                 SLOWDOWN_START
-            )
-            /
+            ) /
             (
                 SLOWDOWN_END -
                 SLOWDOWN_START
@@ -1571,6 +1416,7 @@ function animateCursor() {
             progress;
     }
 
+
     if (
         now -
         lastBlinkTime >=
@@ -1583,10 +1429,12 @@ function animateCursor() {
         lastBlinkTime = now;
     }
 
+
     cursorGroup.style.opacity =
         cursorVisible
             ? "1"
             : "0";
+
 
     const viewBox =
         cursorSource.viewBox.baseVal;
@@ -1615,10 +1463,9 @@ function animateCursor() {
         cursorY +
         LETTER_HEIGHT / 2;
 
+
     cursorGroup.setAttribute(
-
         "transform",
-
         `
         translate(${anchorX} ${anchorY})
         scale(${finalScale})
@@ -1626,9 +1473,11 @@ function animateCursor() {
         `
     );
 
+
     canvas.appendChild(
         cursorGroup
     );
+
 
     cursorAnimationFrame =
         requestAnimationFrame(
@@ -1637,17 +1486,12 @@ function animateCursor() {
 }
 
 
-// ==========================================
-// RESET CURSOR
-// ==========================================
-
 function resetCursor() {
 
     if (
         isSealed ||
         isReadOnly
     ) {
-
         return;
     }
 
@@ -1668,8 +1512,7 @@ function resetCursor() {
 
 
 // ==========================================
-// DESKTOP FOLLOW
-// ORIGINAL VERTICAL BEHAVIOUR
+// CURSOR FOLLOW
 // ==========================================
 
 let lastScrollLine = -1;
@@ -1682,7 +1525,6 @@ function followDesktopCursor() {
         isSealed ||
         isReadOnly
     ) {
-
         return;
     }
 
@@ -1691,8 +1533,7 @@ function followDesktopCursor() {
             (
                 cursorY -
                 TOP_MARGIN
-            )
-            /
+            ) /
             LINE_HEIGHT
         );
 
@@ -1703,6 +1544,7 @@ function followDesktopCursor() {
     const safeBottom =
         window.innerHeight *
         0.75;
+
 
     if (
         cursorOnScreen >
@@ -1715,7 +1557,6 @@ function followDesktopCursor() {
             currentLine;
 
         window.scrollTo({
-
             top:
                 Math.max(
                     0,
@@ -1731,11 +1572,6 @@ function followDesktopCursor() {
 }
 
 
-// ==========================================
-// MOBILE FOLLOW
-// HORIZONTAL + VERTICAL
-// ==========================================
-
 function followMobileCursor() {
 
     if (
@@ -1743,7 +1579,6 @@ function followMobileCursor() {
         isSealed ||
         isReadOnly
     ) {
-
         return;
     }
 
@@ -1754,10 +1589,6 @@ function followMobileCursor() {
     const screenY =
         cursorY -
         window.scrollY;
-
-
-    // Keep the cursor around the middle-right
-    // of the phone while typing.
 
     const safeRight =
         window.innerWidth *
@@ -1775,7 +1606,6 @@ function followMobileCursor() {
         window.innerHeight *
         0.15;
 
-
     let targetX =
         window.scrollX;
 
@@ -1783,10 +1613,7 @@ function followMobileCursor() {
         window.scrollY;
 
 
-    if (
-        screenX >
-        safeRight
-    ) {
+    if (screenX > safeRight) {
 
         targetX =
             cursorX -
@@ -1795,10 +1622,7 @@ function followMobileCursor() {
     }
 
 
-    if (
-        screenX <
-        safeLeft
-    ) {
+    if (screenX < safeLeft) {
 
         targetX =
             cursorX -
@@ -1807,10 +1631,7 @@ function followMobileCursor() {
     }
 
 
-    if (
-        screenY >
-        safeBottom
-    ) {
+    if (screenY > safeBottom) {
 
         targetY =
             cursorY -
@@ -1819,10 +1640,7 @@ function followMobileCursor() {
     }
 
 
-    if (
-        screenY <
-        safeTop
-    ) {
+    if (screenY < safeTop) {
 
         targetY =
             cursorY -
@@ -1845,22 +1663,12 @@ function followMobileCursor() {
 
 
     window.scrollTo({
-
-        left:
-            targetX,
-
-        top:
-            targetY,
-
-        behavior:
-            "smooth"
+        left: targetX,
+        top: targetY,
+        behavior: "smooth"
     });
 }
 
-
-// ==========================================
-// FOLLOW CORRECT DEVICE
-// ==========================================
 
 function followCursor() {
 
@@ -1884,19 +1692,17 @@ function updateCanvasSize() {
     const requiredHeight =
         Math.max(
             cursorY +
-                LINE_HEIGHT +
-                150,
+            LINE_HEIGHT +
+            150,
             window.innerHeight
         );
 
 
-    // ======================================
-    // DESKTOP
-    // ======================================
+    // --------------------------------------
+    // DESKTOP WRITER
+    // --------------------------------------
 
     if (!isMobile) {
-
-        // Preserve original desktop width.
 
         canvas.setAttribute(
             "width",
@@ -1918,9 +1724,9 @@ function updateCanvasSize() {
     }
 
 
-    // ======================================
-    // MOBILE
-    // ======================================
+    // --------------------------------------
+    // MOBILE WRITER
+    // --------------------------------------
 
     let requiredWidth =
         Math.max(
@@ -1930,7 +1736,6 @@ function updateCanvasSize() {
 
 
     history.forEach(
-
         function (item) {
 
             if (
@@ -1976,7 +1781,7 @@ function updateCanvasHeight() {
 
 
 // ==========================================
-// CREATE GLYPH ELEMENT
+// CREATE GLYPH
 // ==========================================
 
 function createGlyphElement(
@@ -1990,9 +1795,9 @@ function createGlyphElement(
         glyphs[character];
 
     if (!sourceSVG) {
-
         return null;
     }
+
 
     const viewBox =
         sourceSVG.viewBox.baseVal;
@@ -2016,16 +1821,17 @@ function createGlyphElement(
         scaleY *
         stretch;
 
+
     const group =
         document.createElementNS(
             SVG_NS,
             "g"
         );
 
+
     Array.from(
         sourceSVG.children
     ).forEach(
-
         function (child) {
 
             const copy =
@@ -2044,10 +1850,9 @@ function createGlyphElement(
         }
     );
 
+
     group.setAttribute(
-
         "transform",
-
         `
         translate(${x} ${y})
         scale(${scaleX} ${scaleY})
@@ -2055,17 +1860,15 @@ function createGlyphElement(
         `
     );
 
+
     canvas.appendChild(
         group
     );
 
+
     return {
-
-        element:
-            group,
-
-        width:
-            newWidth
+        element: group,
+        width: newWidth
     };
 }
 
@@ -2085,6 +1888,7 @@ function drawGlyph(
     if (!sourceSVG) {
         return;
     }
+
 
     const viewBox =
         sourceSVG.viewBox.baseVal;
@@ -2149,6 +1953,7 @@ function drawGlyph(
             stretch
         );
 
+
     if (!result) {
         return;
     }
@@ -2164,20 +1969,15 @@ function drawGlyph(
 
     history.push({
 
-        type:
-            "glyph",
+        type: "glyph",
 
-        character:
-            character,
+        character: character,
 
         element:
             result.element,
 
-        x:
-            startX,
-
-        y:
-            startY,
+        x: startX,
+        y: startY,
 
         width:
             result.width,
@@ -2222,16 +2022,19 @@ function drawGlyph(
 
 function handleReturn() {
 
+    if (
+        isSealed ||
+        isReadOnly
+    ) {
+        return;
+    }
+
     history.push({
 
-        type:
-            "return",
+        type: "return",
 
-        x:
-            cursorX,
-
-        y:
-            cursorY
+        x: cursorX,
+        y: cursorY
     });
 
 
@@ -2263,16 +2066,20 @@ function handleReturn() {
 
 function handleSpace() {
 
+    if (
+        isSealed ||
+        isReadOnly
+    ) {
+        return;
+    }
+
+
     history.push({
 
-        type:
-            "space",
+        type: "space",
 
-        x:
-            cursorX,
-
-        y:
-            cursorY
+        x: cursorX,
+        y: cursorY
     });
 
 
@@ -2320,7 +2127,6 @@ function processTypedCharacter(
         isSealed ||
         isReadOnly
     ) {
-
         return;
     }
 
@@ -2347,13 +2153,15 @@ function processTypedCharacter(
     }
 
 
-    // This timing measurement is shared by
-    // desktop AND mobile.
+    // IMPORTANT:
+    // Mobile and desktop both use this same
+    // timing measurement.
 
     const now =
         performance.now();
 
     let interval = 200;
+
 
     if (
         lastKeyTime !==
@@ -2364,6 +2172,7 @@ function processTypedCharacter(
             now -
             lastKeyTime;
     }
+
 
     lastKeyTime = now;
 
@@ -2376,7 +2185,7 @@ function processTypedCharacter(
 
 
 // ==========================================
-// REMOVE STRIKES
+// STRIKE HELPERS
 // ==========================================
 
 function removeStrikeGroups(items) {
@@ -2384,8 +2193,8 @@ function removeStrikeGroups(items) {
     const removedGroups =
         new Set();
 
-    items.forEach(
 
+    items.forEach(
         function (item) {
 
             if (
@@ -2402,15 +2211,12 @@ function removeStrikeGroups(items) {
                 item.strikeElement.remove();
             }
 
-            item.strikeElement = null;
+            item.strikeElement =
+                null;
         }
     );
 }
 
-
-// ==========================================
-// DRAW STRIKE
-// ==========================================
 
 function drawContinuousStrike(items) {
 
@@ -2418,15 +2224,15 @@ function drawContinuousStrike(items) {
         !strikeSource ||
         items.length === 0
     ) {
-
         return;
     }
+
 
     let startX = Infinity;
     let endX = -Infinity;
 
-    items.forEach(
 
+    items.forEach(
         function (item) {
 
             startX =
@@ -2480,7 +2286,6 @@ function drawContinuousStrike(items) {
     Array.from(
         strikeSource.children
     ).forEach(
-
         function (child) {
 
             const copy =
@@ -2501,9 +2306,7 @@ function drawContinuousStrike(items) {
 
 
     strikeGroup.setAttribute(
-
         "transform",
-
         `
         translate(${startX} ${lineY})
         scale(${scaleX} ${scaleY})
@@ -2518,7 +2321,6 @@ function drawContinuousStrike(items) {
 
 
     items.forEach(
-
         function (item) {
 
             item.strikeElement =
@@ -2539,15 +2341,10 @@ function drawContinuousStrike(items) {
 }
 
 
-// ==========================================
-// REDRAW STRIKES
-// ==========================================
-
 function redrawAllStrikes() {
 
     const struckItems =
         history.filter(
-
             function (item) {
 
                 return (
@@ -2564,7 +2361,6 @@ function redrawAllStrikes() {
 
 
     struckItems.forEach(
-
         function (item) {
 
             if (
@@ -2579,21 +2375,17 @@ function redrawAllStrikes() {
                 );
             }
 
-            lines.get(
-                item.y
-            ).push(
-                item
-            );
+            lines
+                .get(item.y)
+                .push(item);
         }
     );
 
 
     lines.forEach(
-
         function (lineItems) {
 
             lineItems.sort(
-
                 function (a, b) {
 
                     return a.x - b.x;
@@ -2605,7 +2397,6 @@ function redrawAllStrikes() {
 
 
             lineItems.forEach(
-
                 function (item) {
 
                     if (
@@ -2636,9 +2427,7 @@ function redrawAllStrikes() {
                         LETTER_GAP + 2
                     ) {
 
-                        group.push(
-                            item
-                        );
+                        group.push(item);
 
                     } else {
 
@@ -2666,35 +2455,38 @@ function redrawAllStrikes() {
 
 
 // ==========================================
-// BACKSPACE → STRIKE
+// BACKSPACE
 // ==========================================
 
 function strikePreviousCharacter() {
+
+    if (
+        isSealed ||
+        isReadOnly
+    ) {
+        return;
+    }
+
 
     while (
         strikeIndex >= 0
     ) {
 
         const item =
-            history[
-                strikeIndex
-            ];
+            history[strikeIndex];
 
         strikeIndex--;
 
 
         if (
             !item ||
-            item.type !==
-                "glyph"
+            item.type !== "glyph"
         ) {
-
             continue;
         }
 
 
         if (item.struck) {
-
             continue;
         }
 
@@ -2704,7 +2496,6 @@ function strikePreviousCharacter() {
 
         const sameLineStruck =
             history.filter(
-
                 function (historyItem) {
 
                     return (
@@ -2719,7 +2510,6 @@ function strikePreviousCharacter() {
 
 
         sameLineStruck.sort(
-
             function (a, b) {
 
                 return a.x - b.x;
@@ -2739,7 +2529,6 @@ function strikePreviousCharacter() {
 
 
             sameLineStruck.forEach(
-
                 function (candidate) {
 
                     if (
@@ -2747,7 +2536,6 @@ function strikePreviousCharacter() {
                             candidate
                         )
                     ) {
-
                         return;
                     }
 
@@ -2786,8 +2574,7 @@ function strikePreviousCharacter() {
                     if (
                         candidateEnd >=
                             connectedStart -
-                            tolerance
-                        &&
+                            tolerance &&
                         candidateStart <=
                             connectedEnd +
                             tolerance
@@ -2823,7 +2610,7 @@ function strikePreviousCharacter() {
 
 
 // ==========================================
-// LOAD SENT LETTER
+// LOAD RECEIVED LETTER
 // ==========================================
 
 function loadSavedLetter(data) {
@@ -2838,7 +2625,6 @@ function loadSavedLetter(data) {
 
 
     data.forEach(
-
         function (item) {
 
             if (
@@ -2854,6 +2640,7 @@ function loadSavedLetter(data) {
                         item.stretch
                     );
 
+
                 if (!result) {
                     return;
                 }
@@ -2861,8 +2648,7 @@ function loadSavedLetter(data) {
 
                 history.push({
 
-                    type:
-                        "glyph",
+                    type: "glyph",
 
                     character:
                         item.character,
@@ -2870,11 +2656,8 @@ function loadSavedLetter(data) {
                     element:
                         result.element,
 
-                    x:
-                        item.x,
-
-                    y:
-                        item.y,
+                    x: item.x,
+                    y: item.y,
 
                     width:
                         item.width,
@@ -2909,13 +2692,6 @@ function loadSavedLetter(data) {
                         item.y +
                         LETTER_HEIGHT +
                         150
-                    );
-
-
-                cursorY =
-                    Math.max(
-                        cursorY,
-                        item.y
                     );
 
             } else {
@@ -2957,69 +2733,62 @@ function loadSavedLetter(data) {
 
 
     // ======================================
-    // MOBILE RECIPIENT
+    // PRESERVE THE ORIGINAL LETTER SIZE
+    // ON EVERY DEVICE
     // ======================================
 
-    if (isMobile) {
+    canvas.setAttribute(
+        "width",
+        maximumX
+    );
 
-        canvas.setAttribute(
-            "width",
-            maximumX
-        );
+    canvas.setAttribute(
+        "height",
+        maximumY
+    );
 
-        canvas.setAttribute(
-            "height",
-            maximumY
-        );
+    canvas.style.width =
+        maximumX + "px";
 
-        canvas.style.width =
-            maximumX + "px";
+    canvas.style.height =
+        maximumY + "px";
 
-        canvas.style.height =
-            maximumY + "px";
-
-
-        document.documentElement.style.overflowX =
-            "auto";
-
-        document.documentElement.style.overflowY =
-            "auto";
-
-        document.body.style.overflowX =
-            "auto";
-
-        document.body.style.overflowY =
-            "auto";
-
-        document.body.style.touchAction =
-            "pan-x pan-y";
-
-        canvas.style.touchAction =
-            "pan-x pan-y";
-    }
+    canvas.style.maxWidth =
+        "none";
 
 
     // ======================================
-    // DESKTOP RECIPIENT
+    // ALLOW FULL LETTER TO BE EXPLORED
     // ======================================
 
-    else {
+    document.documentElement.style.overflowX =
+        "auto";
 
-        // Keep desktop presentation behaving
-        // as it did before.
+    document.documentElement.style.overflowY =
+        "auto";
 
-        canvas.setAttribute(
-            "height",
-            maximumY
-        );
+    document.body.style.overflowX =
+        "auto";
 
-        canvas.style.width =
-            "100%";
+    document.body.style.overflowY =
+        "auto";
 
-        canvas.style.height =
-            maximumY + "px";
-    }
+    document.body.style.width =
+        "max-content";
 
+    document.body.style.minWidth =
+        "100%";
+
+    document.body.style.touchAction =
+        "pan-x pan-y";
+
+    canvas.style.touchAction =
+        "pan-x pan-y";
+
+
+    // ======================================
+    // HIDE WRITER CONTROLS
+    // ======================================
 
     if (interfaceButton) {
 
@@ -3057,20 +2826,14 @@ function loadSavedLetter(data) {
 // ==========================================
 
 window.addEventListener(
-
     "keydown",
-
     function (event) {
-
-
-        // Mobile textarea handles mobile input.
 
         if (
             mobileInput &&
             document.activeElement ===
                 mobileInput
         ) {
-
             return;
         }
 
@@ -3079,12 +2842,9 @@ window.addEventListener(
             isSealed ||
             isReadOnly
         ) {
-
             return;
         }
 
-
-        // ENTER
 
         if (
             event.key ===
@@ -3099,8 +2859,6 @@ window.addEventListener(
         }
 
 
-        // BACKSPACE
-
         if (
             event.key ===
             "Backspace"
@@ -3114,14 +2872,11 @@ window.addEventListener(
         }
 
 
-        // SHORTCUTS
-
         if (
             event.metaKey ||
             event.ctrlKey ||
             event.altKey
         ) {
-
             return;
         }
 
@@ -3129,15 +2884,12 @@ window.addEventListener(
         if (
             event.key.length !== 1
         ) {
-
             return;
         }
 
 
         event.preventDefault();
 
-
-        // SPACE
 
         if (
             event.key === " "
@@ -3161,9 +2913,7 @@ window.addEventListener(
 // ==========================================
 
 window.addEventListener(
-
     "resize",
-
     function () {
 
         if (!isReadOnly) {
@@ -3175,7 +2925,101 @@ window.addEventListener(
 
 
 // ==========================================
-// INITIAL SIZE
+// LOAD EVERYTHING
 // ==========================================
 
-updateCanvasSize();
+async function loadEverything() {
+
+    setupMobilePage();
+
+    if (isMobile) {
+
+        createMobileInput();
+    }
+
+
+    const characters =
+        Object.keys(glyphFiles);
+
+
+    await Promise.all(
+        characters.map(
+            async function (character) {
+
+                glyphs[character] =
+                    await loadSVG(
+                        glyphFiles[character]
+                    );
+            }
+        )
+    );
+
+
+    cursorSource =
+        await loadSVG(
+            "./glyphs/cursor.svg"
+        );
+
+
+    strikeSource =
+        await loadSVG(
+            "./glyphs/strike-through.svg"
+        );
+
+
+    createInterfaceButton();
+
+    createBackButton();
+
+
+    const heartID =
+        getHeartIDFromURL();
+
+
+    // ======================================
+    // RECEIVED LETTER
+    // ======================================
+
+    if (heartID) {
+
+        isReadOnly = true;
+        isSealed = true;
+
+        await loadHeartFromSupabase(
+            heartID
+        );
+
+        return;
+    }
+
+
+    // ======================================
+    // NEW LETTER
+    // ======================================
+
+    if (cursorSource) {
+
+        createCursor();
+    }
+
+
+    setButtonState(
+        "seal",
+        false
+    );
+
+
+    updateCanvasSize();
+
+
+    console.log(
+        "Bared Heart loaded."
+    );
+}
+
+
+// ==========================================
+// START
+// ==========================================
+
+loadEverything();

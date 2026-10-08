@@ -6,10 +6,17 @@
 
     <meta charset="UTF-8">
 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Bared Heart</title>
 
     <style>
-        html, body {
+
+        html,
+        body {
             margin: 0;
             width: 100%;
             min-height: 100%;
@@ -23,8 +30,12 @@
             min-height: 100vh;
         }
 
-        @media (pointer: coarse) {
-            html, body {
+        /* MOBILE ONLY */
+
+        @media (max-width: 768px) {
+
+            html,
+            body {
                 overflow-x: auto;
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
@@ -36,19 +47,23 @@
                 max-width: none;
             }
         }
+
     </style>
 
 </head>
 
 <body>
 
-    <svg id="canvas"
+    <svg
+        id="canvas"
         width="100%"
-        height="100vh">
-    </svg>
+        height="100vh"
+    ></svg>
 
     <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <script src="./script.js"></script>
 
 </body>
