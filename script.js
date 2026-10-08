@@ -80,7 +80,10 @@ const SLOWDOWN_END = 4500;
 
 const BUTTON_RIGHT = 30;
 const BUTTON_LEFT = 30;
-const BUTTON_BOTTOM = 30;
+
+// Mobile buttons sit 20px lower.
+// Desktop remains at its original 30px.
+const BUTTON_BOTTOM = isMobile ? 10 : 30;
 
 const BUTTON_WIDTH = 115;
 const BUTTON_TRANSITION = 280;
@@ -281,29 +284,25 @@ function setupMobilePage() {
 // MOBILE KEYBOARD — BUTTON VISIBILITY
 // ==========================================
 
+// Buttons now stay visible whether the
+// mobile keyboard is open or closed.
+
 function updateMobileButtons() {
     if (!isMobile || isReadOnly) return;
 
     if (interfaceButton) {
-        interfaceButton.style.visibility =
-            mobileKeyboardOpen ? "hidden" : "visible";
+        interfaceButton.style.visibility = "visible";
 
         interfaceButton.style.pointerEvents =
-            mobileKeyboardOpen || isCollected
-                ? "none"
-                : "auto";
+            isCollected ? "none" : "auto";
     }
 
     if (backButton) {
         backButton.style.visibility =
-            mobileKeyboardOpen || !isCollected
-                ? "hidden"
-                : "visible";
+            isCollected ? "visible" : "hidden";
 
         backButton.style.pointerEvents =
-            mobileKeyboardOpen || !isCollected
-                ? "none"
-                : "auto";
+            isCollected ? "auto" : "none";
     }
 }
 
@@ -348,13 +347,10 @@ function createMobileInput() {
 
     document.body.appendChild(mobileInput);
 
-    // Keyboard opens
     mobileInput.addEventListener("focus", function () {
         setMobileKeyboardOpen(true);
     });
 
-    // Keyboard closes, including Safari's Done/✓
-    // when it releases focus.
     mobileInput.addEventListener("blur", function () {
         setMobileKeyboardOpen(false);
     });
@@ -417,11 +413,6 @@ function focusMobileInput() {
 // MOBILE KEYBOARD — SAFARI FALLBACK
 // ==========================================
 
-// On some iPhones, tapping ✓ dismisses the
-// keyboard without immediately blurring the
-// textarea. The visual viewport provides an
-// additional way to detect this.
-
 let keyboardCheckTimer = null;
 
 function checkMobileKeyboardViewport() {
@@ -434,15 +425,11 @@ function checkMobileKeyboardViewport() {
     const heightDifference =
         window.innerHeight - viewport.height;
 
-    // A substantial height reduction normally
-    // indicates that the keyboard is visible.
     if (heightDifference > 150) {
         setMobileKeyboardOpen(true);
         return;
     }
 
-    // Wait briefly to avoid flickering during
-    // Safari's keyboard closing animation.
     clearTimeout(keyboardCheckTimer);
 
     keyboardCheckTimer = setTimeout(function () {
