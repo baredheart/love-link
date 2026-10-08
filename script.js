@@ -80,7 +80,6 @@ const SLOWDOWN_END = 4500;
 
 const BUTTON_RIGHT = 30;
 const BUTTON_LEFT = 30;
-
 const BUTTON_BOTTOM = isMobile ? 10 : 30;
 
 const BUTTON_WIDTH = 115;
@@ -282,11 +281,10 @@ function setupMobilePage() {
 // MOBILE KEYBOARD — BUTTON VISIBILITY
 // ==========================================
 
-// Buttons remain visible while typing.
-
 function updateMobileButtons() {
     if (!isMobile || isReadOnly) return;
 
+    // Keep buttons visible when the keyboard opens.
     if (interfaceButton) {
         interfaceButton.style.visibility = "visible";
 
@@ -347,8 +345,6 @@ function createMobileInput() {
     mobileInput.addEventListener("focus", function () {
         setMobileKeyboardOpen(true);
 
-        // Allow Safari's keyboard animation to finish
-        // before moving the writing area.
         setTimeout(function () {
             updateCanvasSize();
             followMobileCursor();
@@ -454,8 +450,6 @@ if (isMobile && window.visualViewport) {
     window.visualViewport.addEventListener("resize", function () {
         checkMobileKeyboardViewport();
 
-        // Recalculate the visible typing area
-        // whenever the keyboard changes height.
         if (!isSealed && !isReadOnly) {
             updateCanvasSize();
             followMobileCursor();
@@ -998,9 +992,14 @@ function followDesktopCursor() {
     }
 }
 
-// MOBILE ONLY:
-// Keep the active typing line visible above
-// the iPhone keyboard as the letter grows.
+// ==========================================
+// MOBILE CURSOR FOLLOW
+// ==========================================
+
+// Mobile only: begin scrolling when the
+// typing cursor reaches halfway down the
+// visible screen, including when the
+// keyboard is open.
 
 function followMobileCursor() {
     if (!isMobile || isSealed || isReadOnly) return;
@@ -1015,23 +1014,19 @@ function followMobileCursor() {
         ? viewport.offsetTop
         : 0;
 
-    const cursorBottom = cursorY + LETTER_HEIGHT;
+    const halfwayPoint =
+        visibleTop + visibleHeight * 0.5;
 
-    // Leave 100px between the active line
-    // and the bottom of the visible viewport.
-    const safeBottom =
-        visibleTop + visibleHeight - 100;
+    const cursorScreenY =
+        cursorY + LETTER_HEIGHT / 2 - window.scrollY;
 
-    const cursorScreenBottom =
-        cursorBottom - window.scrollY;
-
-    if (cursorScreenBottom > safeBottom) {
+    if (cursorScreenY > halfwayPoint) {
         const targetScroll =
-            cursorBottom - safeBottom;
+            cursorY + LETTER_HEIGHT / 2 - halfwayPoint;
 
         window.scrollTo({
             top: Math.max(0, targetScroll),
-            behavior: "smooth"
+            behavior: "auto"
         });
     }
 }
