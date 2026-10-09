@@ -35,7 +35,7 @@ const SITE_URL =
     "https://baredheart.github.io/love-link/";
 
 const FRAMER_URL =
-    "https://baredheart.framer.website/";
+    "https://baredheartletters.framer.website/";
 
 // ==========================================
 // PAGE SETTINGS
